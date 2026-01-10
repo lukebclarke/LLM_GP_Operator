@@ -45,54 +45,57 @@ def plotTree(nodes, edges, labels):
 
 # Define new functions
 def protectedDiv(left, right):
+    # Prevents zero division errors when dividing 
     try:
         return left / right
     except ZeroDivisionError:
         return 1
 
-pset = gp.PrimitiveSet("MAIN", 1)
-pset.addPrimitive(operator.add, 2)
+pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
+pset.addPrimitive(operator.add, 2) 
 pset.addPrimitive(operator.sub, 2)
 pset.addPrimitive(operator.mul, 2)
 pset.addPrimitive(protectedDiv, 2)
 pset.addPrimitive(operator.neg, 1)
 pset.addPrimitive(math.cos, 1)
 pset.addPrimitive(math.sin, 1)
-pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1))
-pset.renameArguments(ARG0='x')
+pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
+pset.renameArguments(ARG0='x') #Renames input variable to x
 
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
+creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
-toolbox = base.Toolbox()
-toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2)
-toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("compile", gp.compile, pset=pset)
+# Defines 'toolbox' functions we can use to create and evaluate individuals
+toolbox = base.Toolbox() 
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
+toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr) #Creates individuals
+toolbox.register("population", tools.initRepeat, list, toolbox.individual) #Creates populations
+toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
 
 def evalSymbReg(individual, points):
-    # Transform the tree expression in a callable function
-    func = toolbox.compile(expr=individual)
-    # Evaluate the mean squared error between the expression
-    # and the real function : x**4 + x**3 + x**2 + x
+    #Defines the fitness function for an individual 
+    func = toolbox.compile(expr=individual) #Transform the tree expression in a callable function
+
+    # Evaluate the mean squared error between the expression and the real function : x**4 + x**3 + x**2 + x
     sqerrors = ((func(x) - x**4 - x**3 - x**2 - x)**2 for x in points)
     return math.fsum(sqerrors) / len(points),
 
-toolbox.register("evaluate", evalSymbReg, points=[x/10. for x in range(-10,10)])
+# Defines genetic operators
+toolbox.register("evaluate", evalSymbReg, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-
-toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
+toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
 def main():
     random.seed(318)
 
     pop = toolbox.population(n=300)
-    hof = tools.HallOfFame(1)
+    hof = tools.HallOfFame(1) #We track 1 best solution
 
+    # Track statistics
     stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
     stats_size = tools.Statistics(len)
     mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
@@ -101,9 +104,15 @@ def main():
     mstats.register("min", numpy.min)
     mstats.register("max", numpy.max)
 
+    # Run GP
     pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.1, 40, stats=mstats,
                                    halloffame=hof, verbose=True)
-    # print log
+    # print log    
+
+    #Visualise best solution
+    nodes, edges, labels = gp.graph(hof[0])
+    plotTree(nodes, edges, labels)
+
     return pop, log, hof
 
 if __name__ == "__main__":
