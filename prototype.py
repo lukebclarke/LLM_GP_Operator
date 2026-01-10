@@ -16,6 +16,7 @@
 import operator
 import math
 import random
+import os
 
 import numpy
 
@@ -30,6 +31,10 @@ from deap import gp
 #Visualisation
 import pygraphviz as pgv
 
+#LLM
+from google import genai
+from google.genai import types
+
 ### Graphviz Section ###
 def plotTree(nodes, edges, labels):
     g = pgv.AGraph()
@@ -42,6 +47,65 @@ def plotTree(nodes, edges, labels):
         n.attr["label"] = labels[i]
 
     g.draw("tree.pdf")
+
+def setupLLM(mutation_prompt_file):
+    #Defines LLM Client for custom genetic operators
+    api_key = os.environ.get("GOOGLE_API_KEY")
+
+    client = genai.Client(api_key=api_key)
+
+    #Gets prompt for custom mutation
+    f = open(mutation_prompt_file)
+    mutation_prompt = f.read()
+    print(mutation_prompt)
+
+    #TODO: Gets prompt for custom crossover
+
+    return client, mutation_prompt
+
+def getLLMChoice(individual, client, prompt):
+    #Returns a number corresponding to a choice of strategy
+    while True:
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash', contents=prompt
+            )
+
+            choice = int(response.text)
+
+            return choice
+        #Ensures that the choice is an integer
+        except TypeError:
+            pass
+
+def selectMutation_LLM(individual, client, prompt):
+    #TODO: Provide more information to the LLM so it can better select an individual
+    choice = getLLMChoice(individual, client, prompt)
+
+    if choice == 1:
+        #Uniform Mutation
+        print("Uniform Mutation")
+        return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
+    elif choice == 2:
+        #Gaussian Mutation
+        print("Gaussian Mutation")
+        return gp.mutGaussian(individual, 0, 0.01, 0.7)
+    else:
+        #TODO: Handle this error 
+        print("Invalid choice")
+        raise ValueError
+
+# Custom Mutation
+def customMutate(individual, client, prompt):
+    #TODO: Identify a point at which evolution stagnates
+    #For now, we will use custom mutate randomly
+    if random.random() < 0.05:
+        #Custom LLM Mutation
+        return selectMutation_LLM(individual, client, prompt)
+    else:
+        #Otherwise, just perform mutation as normal
+        return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
+
 
 # Define new functions
 def protectedDiv(left, right):
@@ -81,15 +145,17 @@ def evalSymbReg(individual, points):
     return math.fsum(sqerrors) / len(points),
 
 # Defines genetic operators
+client, mutation_prompt = setupLLM("LLMPromptMutation.txt") #Custom operators require LLM input
 toolbox.register("evaluate", evalSymbReg, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
-toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
+toolbox.register("mutate", customMutate, client=client, prompt=mutation_prompt)
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
 def main():
+
     random.seed(318)
 
     pop = toolbox.population(n=300)
@@ -104,7 +170,7 @@ def main():
     mstats.register("min", numpy.min)
     mstats.register("max", numpy.max)
 
-    # Run GP
+    # Run GP - Simple Evolutionary Algorithm
     pop, log = algorithms.eaSimple(pop, toolbox, 0.5, 0.1, 40, stats=mstats,
                                    halloffame=hof, verbose=True)
     # print log    

@@ -1,0 +1,5 @@
+
+I will show you 2 options of mutation operators for a Genetic Programming algorithm. Choose the one you think is most appropiate. Only return a single number reflecting the option chosen.
+
+1 - Uniform Mutation: Randomly select a point in the tree individual, then replace the subtree at that point as a root by the expression generated using method expr().
+2 - Gaussian Mutation: This function applies a gaussian mutation of mean mu and standard deviation sigma on the input individual. This mutation expects a sequence individual composed of real valued attributes. The indpb argument is the probability of each attribute to be mutated.
