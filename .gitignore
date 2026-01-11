@@ -1,6 +1,9 @@
 #Benchmarking Set
 srbench
+
+#APIs
 APIkeys.txt
+.env
 
 ### macOS ###
 # General
