@@ -120,8 +120,8 @@ def selectMutation_LLM(individual, client, prompt):
         return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
     elif choice == 2:
         #Gaussian Mutation
-        print("Gaussian Mutation")
-        return gp.mutGaussian(individual, 0, 0.01, 0.7)
+        print("Shrink Mutation")
+        return gp.mutShrink(individual)
     else:
         #TODO: Handle this error 
         print("Invalid choice")
