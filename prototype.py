@@ -93,7 +93,7 @@ def getLLMChoice(individual, client, prompt):
     while True:
         try:
             response = client.chat.completions.create(
-                model="meta-llama/Llama-Guard-4-12B",
+                model="meta-llama/Llama-4-Scout-17B-16E-Instruct",
                 messages=[
                 {
                     "role": "user",
