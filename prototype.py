@@ -34,6 +34,7 @@ import pygraphviz as pgv
 #LLM
 from google import genai
 from google.genai import types
+from together import Together
 
 #API Keys
 from dotenv import load_dotenv
@@ -51,10 +52,9 @@ def plotTree(nodes, edges, labels):
 
     g.draw("tree.pdf")
 
-def setupLLM(mutation_prompt_file):
+def setupLLM_Gemini(mutation_prompt_file):
     #Defines LLM Client for custom genetic operators
     api_key = os.environ.get("GEMINI_KEY")
-    print(api_key)
 
     if api_key is None:
         raise Exception("API key not found")
@@ -70,15 +70,40 @@ def setupLLM(mutation_prompt_file):
 
     return client, mutation_prompt
 
+def setupLLM_Together(mutation_prompt_file):
+    #Defines LLM Client for custom genetic operators
+    api_key = os.environ.get("TOGETHER_AI")
+
+    if api_key is None:
+        raise Exception("API key not found")
+
+    client = Together(api_key=api_key)
+    
+    #Gets prompt for custom mutation
+    f = open(mutation_prompt_file)
+    mutation_prompt = f.read()
+    print(mutation_prompt)
+
+    #TODO: Gets prompt for custom crossover
+
+    return client, mutation_prompt
+
 def getLLMChoice(individual, client, prompt):
     #Returns a number corresponding to a choice of strategy
     while True:
         try:
-            response = client.models.generate_content(
-                model='gemini-2.5-flash', contents=prompt
+            response = client.chat.completions.create(
+                model="meta-llama/Llama-Guard-4-12B",
+                messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+                ]
             )
-
-            choice = int(response.text)
+            
+            print(response.choices[0].message.content)
+            choice = int(response.choices[0].message.content)
 
             return choice
         #Ensures that the choice is an integer
@@ -155,7 +180,7 @@ def evalSymbReg(individual, points):
     return math.fsum(sqerrors) / len(points),
 
 # Defines genetic operators
-client, mutation_prompt = setupLLM("LLMPromptMutation.txt") #Custom operators require LLM input
+client, mutation_prompt = setupLLM_Together("LLMPromptMutation.txt") #Custom operators require LLM input
 toolbox.register("evaluate", evalSymbReg, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("mate", gp.cxOnePoint)
