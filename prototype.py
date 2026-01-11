@@ -35,6 +35,9 @@ import pygraphviz as pgv
 from google import genai
 from google.genai import types
 
+#API Keys
+from dotenv import load_dotenv
+
 ### Graphviz Section ###
 def plotTree(nodes, edges, labels):
     g = pgv.AGraph()
@@ -50,7 +53,11 @@ def plotTree(nodes, edges, labels):
 
 def setupLLM(mutation_prompt_file):
     #Defines LLM Client for custom genetic operators
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    api_key = os.environ.get("GEMINI_KEY")
+    print(api_key)
+
+    if api_key is None:
+        raise Exception("API key not found")
 
     client = genai.Client(api_key=api_key)
 
@@ -106,7 +113,6 @@ def customMutate(individual, client, prompt):
         #Otherwise, just perform mutation as normal
         return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
 
-
 # Define new functions
 def protectedDiv(left, right):
     # Prevents zero division errors when dividing 
@@ -115,6 +121,10 @@ def protectedDiv(left, right):
     except ZeroDivisionError:
         return 1
 
+#Loads in environment variables
+load_dotenv()
+
+#Defines Problem
 pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
 pset.addPrimitive(operator.add, 2) 
 pset.addPrimitive(operator.sub, 2)
@@ -155,7 +165,6 @@ toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_v
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
 def main():
-
     random.seed(318)
 
     pop = toolbox.population(n=300)
