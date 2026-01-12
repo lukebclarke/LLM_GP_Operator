@@ -39,6 +39,14 @@ from together import Together
 #API Keys
 from dotenv import load_dotenv
 
+global uniform_mut_count
+global shrink_mut_count
+global node_replacement_count
+
+uniform_mut_count = 0
+shrink_mut_count = 0
+node_replacement_count = 0
+
 ### Graphviz Section ###
 def plotTree(nodes, edges, labels):
     g = pgv.AGraph()
@@ -114,7 +122,6 @@ def getLLMChoice(individual, client, base_prompt):
                 ]
             )
             
-            print(response.choices[0].message.content)
             choice = int(response.choices[0].message.content)
 
             #TODO: Ensure LLM choice is valid (within options)
@@ -129,16 +136,20 @@ def selectMutation_LLM(individual, client, base_prompt):
     #TODO: Provide more information to the LLM so it can better select an individual
     choice = getLLMChoice(individual, client, base_prompt)
 
+    global uniform_mut_count
+    global shrink_mut_count
+    global node_replacement_count
+
     if choice == 1:
         #Uniform Mutation
-        print("Uniform Mutation")
+        uniform_mut_count += 1
         return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
     elif choice == 2:
         #Gaussian Mutation
-        print("Shrink Mutation")
+        shrink_mut_count += 1
         return gp.mutShrink(individual)
     elif choice == 3:
-        print("Node replacement")
+        node_replacement_count += 1
         return gp.mutNodeReplacement(individual, pset=pset)
     else:
         #TODO: Handle this error 
@@ -231,6 +242,10 @@ def main():
     #Visualise best solution
     nodes, edges, labels = gp.graph(hof[0])
     plotTree(nodes, edges, labels)
+
+    print(f"Uniform Mutations: {uniform_mut_count}")
+    print(f"Shrink Mutations: {shrink_mut_count}")
+    print(f"Node Replacements: {node_replacement_count}")
 
     return pop, log, hof
 
