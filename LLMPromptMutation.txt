@@ -1,5 +1,7 @@
 
-I will show you 2 options of mutation operators for a Genetic Programming algorithm. Choose the one you think is most appropiate. Only return a single number reflecting the option chosen.
+I will show you 2 options of mutation operators for a Genetic Programming algorithm. Choose the one you think is most appropiate. Occasionally, prefer exploration. Only return a single number reflecting the option chosen - do not provide justification.
+We want to keep depth below 5.
 
 1 - Uniform Mutation: Randomly select a point in the tree individual, then replace the subtree at that point as a root by the expression generated using method expr().
 2 - Shrink Mutation: This operator shrinks the individual by choosing randomly a branch and replacing it with one of the branch’s arguments (also randomly chosen).
+3 - Node Replacement: Replaces a randomly chosen primitive from individual by a randomly chosen primitive with the same number of arguments from the pset attribute of the individual.

@@ -52,6 +52,17 @@ def plotTree(nodes, edges, labels):
 
     g.draw("tree.pdf")
 
+def createMutationPrompt(base_prompt, individual):
+    #Creates a custom mutation prompt that includes information about the individual
+    #TODO: Include fitness, avg fitness, etc.
+    #TODO: More optimal way to count number of nodes?
+    nodes, edges, labels = gp.graph(individual)
+    num_nodes = len(nodes)
+    height = individual.height
+    additional_info = f"The current GP individual:\n- Has {num_nodes} nodes\n- Has a depth of {height}\n"
+
+    return additional_info + base_prompt
+
 def setupLLM_Gemini(mutation_prompt_file):
     #Defines LLM Client for custom genetic operators
     api_key = os.environ.get("GEMINI_KEY")
@@ -63,12 +74,11 @@ def setupLLM_Gemini(mutation_prompt_file):
 
     #Gets prompt for custom mutation
     f = open(mutation_prompt_file)
-    mutation_prompt = f.read()
-    print(mutation_prompt)
+    base_mutation_prompt = f.read()
 
     #TODO: Gets prompt for custom crossover
 
-    return client, mutation_prompt
+    return client, base_mutation_prompt
 
 def setupLLM_Together(mutation_prompt_file):
     #Defines LLM Client for custom genetic operators
@@ -81,23 +91,25 @@ def setupLLM_Together(mutation_prompt_file):
     
     #Gets prompt for custom mutation
     f = open(mutation_prompt_file)
-    mutation_prompt = f.read()
-    print(mutation_prompt)
+    base_mutation_prompt = f.read()
 
     #TODO: Gets prompt for custom crossover
 
-    return client, mutation_prompt
+    return client, base_mutation_prompt
 
-def getLLMChoice(individual, client, prompt):
+def getLLMChoice(individual, client, base_prompt):
     #Returns a number corresponding to a choice of strategy
+    full_prompt = createMutationPrompt(base_prompt, individual)
+
     while True:
         try:
             response = client.chat.completions.create(
                 model="meta-llama/Llama-4-Scout-17B-16E-Instruct",
+                temperature=0.95,
                 messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": full_prompt
                 }
                 ]
             )
@@ -105,14 +117,17 @@ def getLLMChoice(individual, client, prompt):
             print(response.choices[0].message.content)
             choice = int(response.choices[0].message.content)
 
+            #TODO: Ensure LLM choice is valid (within options)
+
             return choice
         #Ensures that the choice is an integer
-        except TypeError:
+        except ValueError:
+            print("Retry")
             pass
 
-def selectMutation_LLM(individual, client, prompt):
+def selectMutation_LLM(individual, client, base_prompt):
     #TODO: Provide more information to the LLM so it can better select an individual
-    choice = getLLMChoice(individual, client, prompt)
+    choice = getLLMChoice(individual, client, base_prompt)
 
     if choice == 1:
         #Uniform Mutation
@@ -122,18 +137,22 @@ def selectMutation_LLM(individual, client, prompt):
         #Gaussian Mutation
         print("Shrink Mutation")
         return gp.mutShrink(individual)
+    elif choice == 3:
+        print("Node replacement")
+        return gp.mutNodeReplacement(individual, pset=pset)
     else:
         #TODO: Handle this error 
         print("Invalid choice")
         raise ValueError
 
 # Custom Mutation
-def customMutate(individual, client, prompt):
+def customMutate(individual, client, base_prompt):
     #TODO: Identify a point at which evolution stagnates
     #For now, we will use custom mutate randomly
+    createMutationPrompt(base_prompt, individual)
     if random.random() < 0.05:
         #Custom LLM Mutation
-        return selectMutation_LLM(individual, client, prompt)
+        return selectMutation_LLM(individual, client, base_prompt)
     else:
         #Otherwise, just perform mutation as normal
         return gp.mutUniform(individual, expr=toolbox.expr_mut, pset=pset)
@@ -185,7 +204,7 @@ toolbox.register("evaluate", evalSymbReg, points=[x/10. for x in range(-10,10)])
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
-toolbox.register("mutate", customMutate, client=client, prompt=mutation_prompt)
+toolbox.register("mutate", customMutate, client=client, base_prompt=mutation_prompt)
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
