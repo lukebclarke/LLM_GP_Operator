@@ -1,6 +1,9 @@
 #Benchmarking Set
 srbench
 
+#Results
+tree.pdf 
+
 #APIs
 APIkeys.txt
 .env
