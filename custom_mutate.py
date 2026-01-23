@@ -109,11 +109,11 @@ class CustomMutate():
 
         Args:
             individual (Individual): _description_
-            client (_type_): _description_
-            base_prompt (_type_): _description_
+            client (Together): TogetherAI client instance
+            base_prompt (string): Base prompt used to form part of the LLM input
 
         Returns:
-            _type_: _description_
+            Tuple: A mutated tree (from the original individual)
         """
         #TODO: Identify a point at which evolution stagnates
 
