@@ -119,7 +119,7 @@ class CustomMutate():
 
         #For now, we will use custom mutate randomly
         self.createMutationPrompt(base_prompt, individual)
-        if random.random() < 0.05:
+        if random.random() < 0.00:
             #Custom LLM Mutation
             return self.selectMutation_LLM(individual, client, base_prompt)
         else:

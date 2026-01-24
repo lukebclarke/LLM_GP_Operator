@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 from custom_mutate import CustomMutate
 
 class DynamicOperators():
-    def __init__(self, n, pset):
+    def __init__(self, n, pset, k=2):
         random.seed(318)
         self.n = n
         self.pset = pset
@@ -73,6 +73,10 @@ class DynamicOperators():
         self.mstats.register("min", numpy.min)
         self.mstats.register("max", numpy.max)
 
+        self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
+        self.gens_since_improvement = 0
+        self.prev_avg_fitness = 100000
+
     def setupLLM(self, mutation_prompt_file):
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
@@ -105,6 +109,29 @@ class DynamicOperators():
                                     halloffame=self.hof, verbose=True)
         
         return pop, log, self.hof
+    
+    def updateMutationTechnique(*args):
+        #self.toolbox.register("mutate", self.mutator.mutate, client=client, base_prompt=mutation_prompt) #Uses custom mutation function
+        pass
+        
+    def check_stagnation(self, current_fitness):
+        #There has been an improvement
+        self.gens_since_improvement += 1
+
+        if current_fitness < self.prev_avg_fitness:
+            self.prev_avg_fitness = current_fitness
+            self.gens_since_improvement = 0
+            print("Improvement in fitness")
+        #There has not been an improvement, but less than k generations have surpassed
+        elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement < self.k:
+            self.gens_since_improvement += 1
+            print("No improvement, less than k generations")
+        #There has not been an improvement in k generations
+        elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement >= self.k:
+            print("Redesign mutation operator")
+            pass
+        else:
+            raise Exception("Error tracking previous fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
         logbook = tools.Logbook()
@@ -150,5 +177,8 @@ class DynamicOperators():
             logbook.record(gen=gen, nevals=len(invalid_ind), **record)
             if verbose:
                 print(logbook.stream)
+
+            avg_fitness = record['fitness']['avg']
+            self.check_stagnation(avg_fitness)
 
         return self.pop, logbook, self.hof
