@@ -105,3 +105,50 @@ class DynamicOperators():
                                     halloffame=self.hof, verbose=True)
         
         return pop, log, self.hof
+    
+    def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
+        logbook = tools.Logbook()
+        logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in self.pop if not ind.fitness.valid]
+        fitnesses = self.toolbox.map(self.toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        if self.hof is not None:
+            self.hof.update(self.pop)
+
+        record = self.mstats.compile(self.pop) if self.mstats else {}
+        logbook.record(gen=0, nevals=len(invalid_ind), **record)
+        if verbose:
+            print(logbook.stream)
+
+        # Begin the generational process
+        for gen in range(1, ngen + 1):
+            # Select the next generation individuals
+            offspring = self.toolbox.select(self.pop, len(self.pop))
+
+            # Vary the pool of individuals
+            offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+
+            # Evaluate the individuals with an invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = self.toolbox.map(self.toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+
+            # Update the hall of fame with the generated individuals
+            if self.hof is not None:
+                self.hof.update(offspring)
+
+            # Replace the current population by the offspring
+            self.pop[:] = offspring
+
+            # Append the current generation statistics to the logbook
+            record = self.mstats.compile(self.pop) if self.mstats else {}
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+            if verbose:
+                print(logbook.stream)
+
+        return self.pop, logbook, self.hof

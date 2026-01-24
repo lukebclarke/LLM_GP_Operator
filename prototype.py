@@ -61,7 +61,7 @@ pset.renameArguments(ARG0='x') #Renames input variable to x
 def main():
     #Run GP - Simple Evolutionary Algorithm
     algorithm = DynamicOperators(n=300, pset=pset)
-    pop, log, hof = algorithm.runSimpleEA()
+    pop, log, hof = algorithm.runDynamicEA()
 
     print(log)
 
