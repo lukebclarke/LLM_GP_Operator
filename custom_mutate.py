@@ -4,7 +4,14 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+from daytona import Daytona
+from daytona import CodeRunParams
+
+import json
 import random
+
+from util import get_individual_from_string
+from util import get_string_from_individual
 
 class CustomMutate():
     def __init__(self, client, base_prompt, pset, toolbox):
@@ -103,6 +110,106 @@ class CustomMutate():
             #TODO: Handle this error 
             print("Invalid choice")
             raise ValueError
+        
+    def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
+        #Temporary - redesign to identify when stagnating
+        print("Hello?")
+        if self.current_mutation == None:
+            self.redesign_prompt(individual, llm_client, sandbox)
+            print("Redesigned")
+
+        str_individual = get_string_from_individual(individual)
+
+        wrapper = f"""
+{self.current_mutation}
+
+ind = {str_individual}
+result = mutate(ind)
+print(result)
+"""
+
+        #TODO: Clean LLM code (remove '''python from start and end)
+        print(wrapper)
+
+        try:
+            #Execute the code in the sandbox
+            #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
+            response = sandbox.process.code_run(wrapper)
+            
+            if response.exit_code != 0:
+                return f"Error: {response.exit_code} {response.result}"
+            
+            output_str = str(response.result)
+            print(output_str)
+            individual = get_individual_from_string(output_str, self.pset)
+            print(individual)
+
+            return get_individual_from_string(output_str, self.pset)
+        finally:
+            pass #TODO: Sort this out. Clean sandbox?
+    
+    def redesign_prompt(self, individual, llm_client, sandbox):
+        prompt="""
+        Write a Python function called 'mutate(individual)' that returns a mutated version of the individual. 
+        We are using the DEAP library. Include all necessary imports (including DEAP)
+        Assume individual is a mutable list. We will pass 
+        You may define any parameters you need (e.g., mu, sigma, indpb) inside the mutate function.
+        Choose reasonable values and document them in comments.
+        Do not rely on external global variables.
+
+        An example mutation is given below:
+        
+        mu = 0.0
+        sigma = 1.0
+        indpb = 0.1
+
+        size = len(individual)
+        if not isinstance(mu, Sequence):
+            mu = repeat(mu, size)
+        elif len(mu) < size:
+            raise IndexError("mu must be at least the size of individual: %d < %d" % (len(mu), size))
+        if not isinstance(sigma, Sequence):
+            sigma = repeat(sigma, size)
+        elif len(sigma) < size:
+            raise IndexError("sigma must be at least the size of individual: %d < %d" % (len(sigma), size))
+
+        for i, m, s in zip(range(size), mu, sigma):
+            if random.random() < indpb:
+                individual[i] += random.gauss(m, s)
+
+        return individual
+        
+        The function should return the individual as a string. Do not return any other text or data.
+
+        Return raw Python code only, do not wrap it in markdown code blocks or backticks.
+        """
+        #TODO: Should we include pset?
+        #TODO: Check the code runs (maybe use random example with pset?)
+
+        code = ""
+
+        while True:
+            try:
+                response = llm_client.chat.completions.create(
+                            model="meta-llama/Llama-4-Scout-17B-16E-Instruct",
+                            temperature=0.95,
+                            messages=[
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                            ]
+                        )
+                
+                code = response.choices[0].message.content
+            except ValueError:
+                pass
+
+            if "def mutate" in code:
+                break
+
+        print(code)
+        self.current_mutation = code
 
     def mutate(self, individual, client, base_prompt):
         """Mutates the specified individual 

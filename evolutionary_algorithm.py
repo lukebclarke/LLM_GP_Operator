@@ -20,6 +20,7 @@ import pygraphviz as pgv
 from google import genai
 from google.genai import types
 from together import Together
+from daytona import Daytona
 
 #API Keys
 from dotenv import load_dotenv
@@ -49,13 +50,15 @@ class DynamicOperators():
         
         # Defines genetic operators
         client, mutation_prompt = self.setupLLM("LLMPromptMutation.txt") #Custom operators require LLM input
+        self.sandbox = self.setupDaytona()
+
         self.toolbox.register("evaluate", self.evaluateIndividual, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
         self.toolbox.register("select", tools.selTournament, tournsize=3)
         self.toolbox.register("mate", gp.cxOnePoint)
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         self.mutator = CustomMutate(client, mutation_prompt, self.pset, self.toolbox)
-        self.toolbox.register("mutate", self.mutator.mutate, client=client, base_prompt=mutation_prompt) #Uses custom mutation function
+        self.toolbox.register("mutate", self.mutator.llm_custom_mutate, llm_client=client, sandbox=self.sandbox, base_prompt=mutation_prompt) #Uses custom mutation function
         self.toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
 
         self.toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
@@ -82,7 +85,7 @@ class DynamicOperators():
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
 
         if api_key is None:
-            raise Exception("API key not found")
+            raise Exception("Together API key not found")
 
         client = Together(api_key=api_key)
         
@@ -94,6 +97,12 @@ class DynamicOperators():
 
         return client, base_mutation_prompt
     
+    def setupDaytona(self):
+        daytonaClient = Daytona()
+        sandbox = daytonaClient.create()
+
+        return sandbox
+
     def evaluateIndividual(self, individual, points):
         #TODO: This is temporary for this specific function
         #Defines the fitness function for an individual 
@@ -180,5 +189,7 @@ class DynamicOperators():
 
             avg_fitness = record['fitness']['avg']
             self.check_stagnation(avg_fitness)
+
+        self.sandbox.delete()
 
         return self.pop, logbook, self.hof
