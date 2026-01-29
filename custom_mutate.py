@@ -12,6 +12,7 @@ import random
 
 from util import get_individual_from_string
 from util import get_string_from_individual
+from util import clean_llm_output
 
 class CustomMutate():
     def __init__(self, client, base_prompt, pset, toolbox):
@@ -120,6 +121,7 @@ class CustomMutate():
 
         str_individual = get_string_from_individual(individual)
 
+        #TODO: way to make this cleaner?
         wrapper = f"""
 {self.current_mutation}
 
@@ -181,7 +183,7 @@ print(result)
         
         The function should return the individual as a string. Do not return any other text or data.
 
-        Return raw Python code only, do not wrap it in markdown code blocks or backticks.
+        Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
         """
         #TODO: Should we include pset?
         #TODO: Check the code runs (maybe use random example with pset?)
@@ -208,8 +210,10 @@ print(result)
             if "def mutate" in code:
                 break
 
-        print(code)
         self.current_mutation = code
+        self.current_mutation = clean_llm_output(code)
+
+        print(self.current_mutation)
 
     def mutate(self, individual, client, base_prompt):
         """Mutates the specified individual 
