@@ -9,10 +9,15 @@ from daytona import CodeRunParams
 
 import json
 import random
+import pickle
 
 from util import get_individual_from_string
 from util import get_string_from_individual
 from util import clean_llm_output
+from util import pickle_object
+from util import unpickle_object
+from util import tree_to_list
+from util import list_to_tree
 
 class CustomMutate():
     def __init__(self, client, base_prompt, pset, toolbox):
@@ -114,19 +119,19 @@ class CustomMutate():
         
     def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
         #Temporary - redesign to identify when stagnating
-        print("Hello?")
         if self.current_mutation == None:
             self.redesign_prompt(individual, llm_client, sandbox)
             print("Redesigned")
 
-        str_individual = get_string_from_individual(individual)
+        ind_list = tree_to_list(individual)
+        print(f"Original Individual: {ind_list}")
 
         #TODO: way to make this cleaner?
         wrapper = f"""
 {self.current_mutation}
 
-ind = {str_individual}
-result = mutate(ind)
+individual = {ind_list}
+result = mutate_individual(individual)
 print(result)
 """
 
@@ -139,22 +144,40 @@ print(result)
             response = sandbox.process.code_run(wrapper)
             
             if response.exit_code != 0:
-                return f"Error: {response.exit_code} {response.result}"
+                raise Exception(f"Error: {response.exit_code} {response.result}")
             
-            output_str = str(response.result)
-            print(output_str)
-            individual = get_individual_from_string(output_str, self.pset)
-            print(individual)
+            output = response.result
+            print(f"Output string: {output}")
+            print("^^^")
+            individual = list_to_tree(output, self.pset)
+            print(f"Mutated Individual: {output}")
 
-            return get_individual_from_string(output_str, self.pset)
+            return individual
         finally:
+            print("Why am I here")
             pass #TODO: Sort this out. Clean sandbox?
     
     def redesign_prompt(self, individual, llm_client, sandbox):
         prompt="""
-        Write a Python function called 'mutate(individual)' that returns a mutated version of the individual. 
-        We are using the DEAP library. Include all necessary imports (including DEAP)
-        Assume individual is a mutable list. We will pass 
+        Write a Python function called 'mutate_individual(individual)' that returns a mutated version of the individual. 
+
+        The problem set is defined below:
+        pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
+        pset.addPrimitive(operator.add, 2) 
+        pset.addPrimitive(operator.sub, 2)
+        pset.addPrimitive(operator.mul, 2)
+        pset.addPrimitive(protectedDiv, 2)
+        pset.addPrimitive(operator.neg, 1)
+        pset.addPrimitive(math.cos, 1)
+        pset.addPrimitive(math.sin, 1)
+        pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
+        pset.renameArguments(ARG0='x') #Renames input variable to x
+        Do not import deap, or any other external libraries. All manipulation should be done using built-in libraries or functions.
+
+        Include all necessary imports.
+        Assume individual is a mutable list. For example:
+        ["add", "mul", "x", 2, "y"]
+         
         You may define any parameters you need (e.g., mu, sigma, indpb) inside the mutate function.
         Choose reasonable values and document them in comments.
         Do not rely on external global variables.
@@ -181,7 +204,7 @@ print(result)
 
         return individual
         
-        The function should return the individual as a string. Do not return any other text or data.
+        The function should return the mutated individual, also as a mutable list. Do not return any other texts or objects.
 
         Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
         """
