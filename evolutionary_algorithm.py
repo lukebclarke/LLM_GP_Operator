@@ -21,6 +21,8 @@ from google import genai
 from google.genai import types
 from together import Together
 from daytona import Daytona
+import subprocess
+
 
 #API Keys
 from dotenv import load_dotenv
@@ -100,6 +102,14 @@ class DynamicOperators():
     def setupDaytona(self):
         daytonaClient = Daytona()
         sandbox = daytonaClient.create()
+        
+        #Install DEAP on Daytona sandbox
+        # sandbox.fs.upload_file(open("daytona_setup.py", "rb").read(), "setup_daytona.py")
+        # sandbox.("daytona_setup.py")
+
+        #python -m pip install deap==1.4.1
+        sandbox.process.exec("python -m pip install deap==1.4.1")
+        print("Sandbox initialised")
 
         return sandbox
 

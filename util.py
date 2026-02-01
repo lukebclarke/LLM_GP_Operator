@@ -5,6 +5,7 @@ from deap import tools
 from deap import gp
 
 import pickle
+from daytona import Daytona
 
 def get_individual_from_string(individual_string, pset):
     individual = gp.PrimitiveTree.from_string(individual_string, pset)
@@ -21,10 +22,18 @@ def pickle_object(obj, file_name):
         pickle.dump(obj, f)
 
 def unpickle_object(file_name):
-    with open("pset.pkl", "rb") as f:
+    with open(f"{file_name}.pkl", "rb") as f:
         obj = pickle.load(f)
 
     return obj
+
+def unpickle_daytona_file(file_name, sandbox):
+    content = sandbox.fs.download_file(f"{file_name}.pkl")
+
+    with open("new_individual.pkl", "wb") as f:
+        f.write(content)
+
+    return unpickle_object("new_individual.pkl")
 
 def clean_llm_output(output):
     output = output.strip()

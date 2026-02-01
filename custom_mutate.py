@@ -18,6 +18,7 @@ from util import pickle_object
 from util import unpickle_object
 from util import tree_to_list
 from util import list_to_tree
+from util import unpickle_daytona_file
 
 class CustomMutate():
     def __init__(self, client, base_prompt, pset, toolbox):
@@ -118,65 +119,93 @@ class CustomMutate():
             raise ValueError
         
     def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
-        #Temporary - redesign to identify when stagnating
+        #TODO: Temporary - redesign to identify when stagnating
+        print("Mutating")
+
         if self.current_mutation == None:
             self.redesign_prompt(individual, llm_client, sandbox)
             print("Redesigned")
 
+        #Prints original individual - used for debugging purposes
+        print(f"Individual:\n{individual}")
         ind_list = tree_to_list(individual)
         print(f"Original Individual: {ind_list}")
+
+        #Pickles objects - enables transfer to sandbox environment
+        pickle_object(individual, "individual")
+        pickle_object(self.pset, "pset")
+
+        #Uploads files to sandbox
+        with open("individual.pkl", "rb") as f:
+            content = f.read()
+            sandbox.fs.upload_file(content, "individual.pkl")
+
+        with open("pset.pkl", "rb") as f:
+            content = f.read()
+            sandbox.fs.upload_file(content, "pset.pkl")
+
+        print("Files uploaded to sandbox...")
 
         #TODO: way to make this cleaner?
         wrapper = f"""
 {self.current_mutation}
 
-individual = {ind_list}
-result = mutate_individual(individual)
-print(result)
+import pickle
+from deap import base, creator, tools, gp
+
+# Load pickled objects
+with open("individual.pkl", "rb") as f:
+    individual = pickle.load(f)
+
+with open("pset.pkl", "rb") as f:
+    pset = pickle.load(f)
+
+print(individual)
+print("")
+print(pset)
+# Run mutation
+result = mutate_individual(individual, pset)
+
+# Save result
+with open("result.pkl", "wb") as f:
+    pickle.dump(result, f)
 """
 
         #TODO: Clean LLM code (remove '''python from start and end)
         print(wrapper)
 
-        try:
-            #Execute the code in the sandbox
-            #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
-            response = sandbox.process.code_run(wrapper)
-            
-            if response.exit_code != 0:
-                raise Exception(f"Error: {response.exit_code} {response.result}")
-            
-            output = response.result
-            print(f"Output string: {output}")
-            print("^^^")
-            individual = list_to_tree(output, self.pset)
-            print(f"Mutated Individual: {output}")
+        #Redesignes a maximum of 10 times
+        for i in range(5): 
+            try:
+                #Execute the code in the sandbox
+                #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
+                response = sandbox.process.code_run(wrapper)
+                #TODO: Add a timeout - give it 30 seconds to produce code
+                
+                if response.exit_code != 0:
+                    raise Exception(f"Error: {response.exit_code} {response.result}")
+                
+                #output = response.result
+                output = unpickle_daytona_file("result.pkl", sandbox)
+                print(f"Output string: {output}")
 
-            return individual
-        finally:
-            print("Why am I here")
-            pass #TODO: Sort this out. Clean sandbox?
+                return individual
+            except:
+                print("Code failed to execute - redesigning prompt")
+                self.redesign_prompt(individual, llm_client, sandbox)
+            finally:
+                pass #TODO: Sort this out. Clean sandbox?
+
+        #TODO: Raising this in right place?
+        raise Exception("Too many attempts to generate code - redesign the LLM prompt")
     
     def redesign_prompt(self, individual, llm_client, sandbox):
         prompt="""
-        Write a Python function called 'mutate_individual(individual)' that returns a mutated version of the individual. 
+        Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual. 
+        Include all necessary imports, including random, and include the following line at the start of the code:
+        from deap import base, creator, tools, gp
 
-        The problem set is defined below:
-        pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
-        pset.addPrimitive(operator.add, 2) 
-        pset.addPrimitive(operator.sub, 2)
-        pset.addPrimitive(operator.mul, 2)
-        pset.addPrimitive(protectedDiv, 2)
-        pset.addPrimitive(operator.neg, 1)
-        pset.addPrimitive(math.cos, 1)
-        pset.addPrimitive(math.sin, 1)
-        pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
-        pset.renameArguments(ARG0='x') #Renames input variable to x
-        Do not import deap, or any other external libraries. All manipulation should be done using built-in libraries or functions.
-
-        Include all necessary imports.
-        Assume individual is a mutable list. For example:
-        ["add", "mul", "x", 2, "y"]
+        Assume individual is a deap PrimitiveTree. The problem set, pset, is passed and defined in DEAP, and can also be accessed.
          
         You may define any parameters you need (e.g., mu, sigma, indpb) inside the mutate function.
         Choose reasonable values and document them in comments.
@@ -184,6 +213,10 @@ print(result)
 
         An example mutation is given below:
         
+        from collections.abc import Sequence
+        from itertools import repeat
+        from deap import base, creator, tools, gp
+
         mu = 0.0
         sigma = 1.0
         indpb = 0.1
@@ -202,9 +235,9 @@ print(result)
             if random.random() < indpb:
                 individual[i] += random.gauss(m, s)
 
-        return individual
+        return individual,
         
-        The function should return the mutated individual, also as a mutable list. Do not return any other texts or objects.
+        The function should return the mutated individual tuple. Do not return any other texts or objects.
 
         Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
         """
