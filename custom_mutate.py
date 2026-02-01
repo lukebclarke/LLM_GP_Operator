@@ -200,49 +200,9 @@ with open("result.pkl", "wb") as f:
         raise Exception("Too many attempts to generate code - redesign the LLM prompt")
     
     def redesign_prompt(self, individual, llm_client, sandbox):
-        prompt="""
-        Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual. 
-        Include all necessary imports, including random, and include the following line at the start of the code:
-        from deap import base, creator, tools, gp
-
-        Assume individual is a deap PrimitiveTree. The problem set, pset, is passed and defined in DEAP, and can also be accessed.
-         
-        You may define any parameters you need (e.g., mu, sigma, indpb) inside the mutate function.
-        Choose reasonable values and document them in comments.
-        Do not rely on external global variables.
-
-        An example mutation is given below:
-        
-        from collections.abc import Sequence
-        from itertools import repeat
-        from deap import base, creator, tools, gp
-
-        mu = 0.0
-        sigma = 1.0
-        indpb = 0.1
-
-        size = len(individual)
-        if not isinstance(mu, Sequence):
-            mu = repeat(mu, size)
-        elif len(mu) < size:
-            raise IndexError("mu must be at least the size of individual: %d < %d" % (len(mu), size))
-        if not isinstance(sigma, Sequence):
-            sigma = repeat(sigma, size)
-        elif len(sigma) < size:
-            raise IndexError("sigma must be at least the size of individual: %d < %d" % (len(sigma), size))
-
-        for i, m, s in zip(range(size), mu, sigma):
-            if random.random() < indpb:
-                individual[i] += random.gauss(m, s)
-
-        return individual,
-        
-        The function should return the mutated individual tuple. Do not return any other texts or objects.
-
-        Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
-        """
-        #TODO: Should we include pset?
-        #TODO: Check the code runs (maybe use random example with pset?)
+        #Gets LLM Prompt from file
+        with open("LLMPromptMutation.txt", "rb") as f:
+            prompt = f.read()
 
         code = ""
 

@@ -1,7 +1,44 @@
+         
+Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual as a tuple (mutated_individual,). 
+Include all necessary imports, including random, and include the following line at the start:
+from deap import base, creator, tools, gp
 
-I will show you 2 options of mutation operators for a Genetic Programming algorithm. Choose the one you think is most appropiate. Occasionally, prefer exploration. Only return a single number reflecting the option chosen - do not provide justification.
-We want to keep depth below 5.
+Assume 'individual' is a DEAP PrimitiveTree representing a GP individual, and 'pset' is the DEAP PrimitiveSet used to generate it.
 
-1 - Uniform Mutation: Randomly select a point in the tree individual, then replace the subtree at that point as a root by the expression generated using method expr().
-2 - Shrink Mutation: This operator shrinks the individual by choosing randomly a branch and replacing it with one of the branch’s arguments (also randomly chosen).
-3 - Node Replacement: Replaces a randomly chosen primitive from individual by a randomly chosen primitive with the same number of arguments from the pset attribute of the individual.
+Define a mutation probability 'indpb' (probability of mutating each node) inside the function. You may also define other parameters if needed and document them in comments.
+
+The function should mutate nodes in the tree **safely**, respecting their type:
+- Nodes can be Primitives (functions), Terminals (variables/constants), or Ephemeral constants.
+- You may choose how to mutate each node type (e.g., replacing, modifying, or regenerating), but ensure the mutated individual is still valid in the DEAP GP context.
+
+Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
+Return the mutated individual as a tuple: `(mutated_individual,)`. Do not return any other objects or text.
+The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
+
+An example mutation method is given below:
+        
+from collections.abc import Sequence
+from itertools import repeat
+from deap import base, creator, tools, gp
+
+mu = 0.0
+sigma = 1.0
+indpb = 0.1
+
+size = len(individual)
+if not isinstance(mu, Sequence):
+    mu = repeat(mu, size)
+elif len(mu) < size:
+    raise IndexError("mu must be at least the size of individual: %d < %d" % (len(mu), size))
+if not isinstance(sigma, Sequence):
+    sigma = repeat(sigma, size)
+elif len(sigma) < size:
+    raise IndexError("sigma must be at least the size of individual: %d < %d" % (len(sigma), size))
+
+for i, m, s in zip(range(size), mu, sigma):
+    if random.random() < indpb:
+        individual[i] += random.gauss(m, s)
+
+return individual,
+        
+Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
