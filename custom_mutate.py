@@ -147,28 +147,49 @@ class CustomMutate():
         print("Files uploaded to sandbox...")
 
         #TODO: way to make this cleaner?
-        wrapper = f"""
+        wrapper=f"""
 {self.current_mutation}
-
 import pickle
 from deap import base, creator, tools, gp
 
-# Load pickled objects
-with open("individual.pkl", "rb") as f:
-    individual = pickle.load(f)
+def protectedDiv(left, right):
+    # Prevents zero division errors when dividing 
+    try:
+        return left / right
+    except ZeroDivisionError:
+        return 1
 
-with open("pset.pkl", "rb") as f:
-    pset = pickle.load(f)
+pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
+pset.addPrimitive(operator.add, 2) 
+pset.addPrimitive(operator.sub, 2)
+pset.addPrimitive(operator.mul, 2)
+pset.addPrimitive(protectedDiv, 2)
+pset.addPrimitive(operator.neg, 1)
+pset.addPrimitive(math.cos, 1)
+pset.addPrimitive(math.sin, 1)
+pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
+pset.renameArguments(ARG0='x') #Renames input variable to x
 
-print(individual)
-print("")
-print(pset)
-# Run mutation
-result = mutate_individual(individual, pset)
+try:    
+    #Load pickled objects
+    with open("individual.pkl", "rb") as f:
+        individual = pickle.load(f)
 
-# Save result
-with open("result.pkl", "wb") as f:
-    pickle.dump(result, f)
+    with open("pset.pkl", "rb") as f:
+        pset = pickle.load(f)
+
+    #Run mutation
+    result = mutate_individual(individual, pset)
+
+    #Save result
+    with open("result.pkl", "wb") as f:
+        pickle.dump(result, f)
+
+except Exception as e:
+    import traceback
+    with open("error.txt", "w") as f:
+        f.write(traceback.format_exc())
+    raise
 """
 
         #TODO: Clean LLM code (remove '''python from start and end)
@@ -192,6 +213,11 @@ with open("result.pkl", "wb") as f:
                 return individual
             except:
                 print("Code failed to execute - redesigning prompt")
+
+                #Print error from code execution to console
+                error = sandbox.fs.download_file(f"error.txt")
+                print(error)
+
                 self.redesign_prompt(individual, llm_client, sandbox)
             finally:
                 pass #TODO: Sort this out. Clean sandbox?
