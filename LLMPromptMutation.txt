@@ -10,6 +10,7 @@ Define a mutation probability 'indpb' (probability of mutating each node) inside
 The function should mutate nodes in the tree **safely**, respecting their type:
 - Nodes can be Primitives (functions), Terminals (variables/constants), or Ephemeral constants.
 - You may choose how to mutate each node type (e.g., replacing, modifying, or regenerating), but ensure the mutated individual is still valid in the DEAP GP context.
+Use only gp.PrimitiveTree, gp.Primitive, gp.Terminal, and standard Python operations on the tree list.
 
 Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
 Return the mutated individual as a tuple: `(mutated_individual,)`. Do not return any other objects or text.

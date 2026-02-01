@@ -12,6 +12,7 @@ from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
+from gp_primitives import protectedDiv
 
 #Visualisation
 import pygraphviz as pgv
@@ -26,13 +27,6 @@ from dotenv import load_dotenv
 
 #Files
 from evolutionary_algorithm import DynamicOperators
-
-def protectedDiv(left, right):
-    # Prevents zero division errors when dividing 
-    try:
-        return left / right
-    except ZeroDivisionError:
-        return 1
 
 def plotTree(nodes, edges, labels):
     g = pgv.AGraph()
