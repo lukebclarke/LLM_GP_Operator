@@ -12,7 +12,14 @@ The function should mutate nodes in the tree **safely**, respecting their type:
 - You may choose how to mutate each node type (e.g., replacing, modifying, or regenerating), but ensure the mutated individual is still valid in the DEAP GP context.
 Use only gp.PrimitiveTree, gp.Primitive, gp.Terminal, and standard Python operations on the tree list.
 
+Do NOT import or reference any DEAP APIs that are not explicitly documented.
+Do NOT create GP nodes manually (__class__(), constructors, or factories are forbidden).
+Do NOT assume the existence of classes like EphemeralConstant, PrimitiveTree, or helper functions such as get_leaves.
+All replacement nodes must be selected from pset.primitives or pset.terminals.
+The tree structure (prefix order and arity consistency) must remain valid.
+Ephemeral constants must be handled by selecting from pset.terminals, not by instantiation.
 Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
+
 Return the mutated individual as a tuple: `(mutated_individual,)`. Do not return any other objects or text.
 The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
 

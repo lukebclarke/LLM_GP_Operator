@@ -27,97 +27,7 @@ class CustomMutate():
         self.pset = pset
         self.toolbox = toolbox
         self.current_mutation = None #TODO: Track the design we are currently using, and mutate according to this design
-
-    def createMutationPrompt(self, base_prompt, individual):
-        """Creates a custom mutation prompt for a LLM that includes information about the current state of the algorithm
-
-        Args:
-            base_prompt (string): The basic contents of the LLM input - does not include any information about the individual
-            individual (Individual): The individual used to generate the prompt
-
-        Returns:
-            string: The full prompt to feed to LLM
-        """
-        #TODO: Include fitness, avg fitness, etc.
-        #TODO: Don't do this based on individual, do based on generation
-        #TODO: More optimal way to count number of nodes?
-        #TODO: Redesign this whole prompt
-        nodes, edges, labels = gp.graph(individual)
-        num_nodes = len(nodes)
-        height = individual.height
-        additional_info = f"The current GP individual:\n- Has {num_nodes} nodes\n- Has a depth of {height}\n"
-
-        return additional_info + base_prompt
     
-    def getLLMChoice(self, individual, client, base_prompt):
-        """Determines how to mutate future solutions by prompting a LLM 
-
-        Args:
-            individual (Individual): The individual used to generate the prompt
-            client (Together): The Together LLM Client reference
-            base_prompt (string): The prompt used by the LLM to create new mutation strategy
-
-        Returns:
-            int: The choice of mutation method - number corresponds to type of strategy 
-        """
-
-        #Gets LLM Prompt
-        full_prompt = self.createMutationPrompt(base_prompt, individual)
-
-        #Repeats until the LLM makes a decision
-        while True:
-            try:
-                response = client.chat.completions.create(
-                    model="meta-llama/Llama-4-Scout-17B-16E-Instruct",
-                    temperature=0.95,
-                    messages=[
-                    {
-                        "role": "user",
-                        "content": full_prompt
-                    }
-                    ]
-                )
-                
-                choice = int(response.choices[0].message.content)
-
-                #TODO: Ensure LLM choice is valid (within options)
-
-                return choice
-            #Ensures that the choice is an integer
-            except ValueError:
-                print("Retry")
-                pass
-
-    def selectMutation_LLM(self, individual, client, base_prompt):
-        """Mutation operator is designed based on output from LLM
-
-        Args:
-            individual (Individual): The individual to mutate
-            client (Together): The TogetherAI client
-            base_prompt (string): The basic prompt that forms part of the LLM input
-
-        Raises:
-            ValueError: If no valid choice/design is made
-
-        Returns:
-            Tuple: The tuple representing one tree, after the individual has been mutated appropiately
-        """
-        #TODO: Provide more information to the LLM so it can better select an individual
-        choice = self.getLLMChoice(individual, client, base_prompt)
-
-        if choice == 1:
-            #Uniform Mutation
-            return gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
-        elif choice == 2:
-            #Gaussian Mutation
-            return gp.mutShrink(individual)
-        elif choice == 3:
-            return gp.mutNodeReplacement(individual, pset=self.pset)
-        else:
-            #TODO: Handle this error 
-            print("Invalid choice")
-            raise ValueError
-        
     def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
         #TODO: Temporary - redesign to identify when stagnating
         print("Mutating")
@@ -152,6 +62,8 @@ class CustomMutate():
 
 try:    
     import pickle
+    import math
+    import operator
     from gp_primitives import protectedDiv
     from functools import partial
     import random
@@ -206,6 +118,7 @@ except BaseException as e:
                     error = sandbox.fs.download_file("error.txt")
                     print("PYTHON TRACEBACK:")
                     print(error)
+                    sandbox.fs.delete_file("workspace/file.txt")
                 except Exception:
                     print("No error.txt written - failure occurred before try/except")
 
@@ -226,7 +139,7 @@ except BaseException as e:
         while True:
             try:
                 response = llm_client.chat.completions.create(
-                            model="meta-llama/Llama-4-Scout-17B-16E-Instruct",
+                            model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
                             temperature=0.95,
                             messages=[
                             {
@@ -238,10 +151,14 @@ except BaseException as e:
                 
                 code = response.choices[0].message.content
             except ValueError:
+                #TODO: WE can remove this - only used it when we got LLM to make a choice
+                print("Value Error - retrying")
                 pass
 
-            if "def mutate" in code:
+            if "def mutate_individual(" in code:
                 break
+            else:
+                print("No valid function found - retrying")
 
         self.current_mutation = code
         self.current_mutation = clean_llm_output(code)
