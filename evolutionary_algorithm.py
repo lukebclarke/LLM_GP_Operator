@@ -51,7 +51,7 @@ class DynamicOperators():
         self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
         
         # Defines genetic operators
-        client, mutation_prompt = self.setupLLM("LLMPromptMutation.txt") #Custom operators require LLM input
+        client, mutation_prompt = self.setupLLM("docs/LLMPromptMutation.txt") #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
         self.toolbox.register("evaluate", self.evaluateIndividual, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1

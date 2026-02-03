@@ -38,7 +38,7 @@ def plotTree(nodes, edges, labels):
         n = g.get_node(i)
         n.attr["label"] = labels[i]
 
-    g.draw("tree.pdf")
+    g.draw("docs/tree.pdf")
 
 #Defines Problem
 pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input

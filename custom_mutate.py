@@ -29,201 +29,96 @@ class CustomMutate():
         self.pset = pset
         self.toolbox = toolbox
         self.current_mutation = None #TODO: Track the design we are currently using, and mutate according to this design
+
+        #Wrapper for ::< Code
+        with open("docs/mutation_wrapper.txt", "r") as f:
+            self.mutation_wrapper = f.read()
     
     def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
-        #TODO: Temporary - redesign to identify when stagnating
-        print("Mutating")
-
+        #TODO: Temporary - redesign to identify when stagnating. We should start with uniform mutation, instead of redesigning from the start.
         if self.current_mutation == None:
             self.redesign_prompt(individual, llm_client, sandbox)
-            print("Redesigned")
-
-        #Prints original individual - used for debugging purposes
-        print(f"Individual:\n{individual}")
-        ind_list = tree_to_list(individual)
-        print(f"Original Individual: {ind_list}")
 
         #Pickles objects - enables transfer to sandbox environment
         pickle_object(individual, "individual")
         pickle_object(self.pset, "pset")
 
         #Uploads files to sandbox
-        with open("individual.pkl", "rb") as f:
+        with open("temp/individual.pkl", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "individual.pkl")
 
-        with open("pset.pkl", "rb") as f:
+        with open("temp/pset.pkl", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "pset.pkl")
 
-        print("Files uploaded to sandbox...")
-
-        #TODO: way to make this cleaner?
-        wrapper=f"""
-import os
-
-with open("error.txt", "w") as f:
-    f.write("Running..." + os.linesep)
-
-try: 
-{textwrap.indent(self.current_mutation, "    ")}
-
-    import pickle
-    from deap import base, creator, tools, gp
-    import math
-    import operator
-    #import gp_primitives
-    from functools import partial
-    import random
-
-    if not hasattr(creator, "FitnessMin"):
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-
-    if not hasattr(creator, "Individual"):
-        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
-
-    with open("error.txt", "a") as f:
-        f.write("Set up creator" + os.linesep)
-   
-    #Load pickled objects
-    with open("pset.pkl", "rb") as f:
-        pset = pickle.load(f)
-    
-    with open("individual.pkl", "rb") as f:
-        individual = pickle.load(f)
-    
-    with open("error.txt", "a") as f:
-        f.write("Loaded pickles" + os.linesep)
-
-    #Run mutation
-    result = mutate_individual(individual, pset)
-
-    #Verifies correct type (gp.Individual)
-    with open("error.txt", "a") as f:
-        f.write("Invalid Type:" + os.linesep)
-        f.write(str(type(result[0])) + os.linesep)
-
-        if not isinstance(result[0], gp.PrimitiveTree):
-            raise TypeError
-
-    with open("error.txt", "a") as f:
-        f.write("Result:" + os.linesep)
-        f.write(str(result[0]) + os.linesep)
-
-    #Save result
-    with open("result.pkl", "wb") as f:
-        pickle.dump(result, f)
-
-    with open("error.txt", "a") as f:
-        f.write("Result saved" + os.linesep)
-
-except Exception as e:
-    import traceback
-    with open("error.txt", "a") as f:
-        f.write("Error occured" + os.linesep)
-        f.write(traceback.format_exc() + os.linesep)
-    raise
-"""
-
-        #TODO: Clean LLM code (remove '''python from start and end)
-        print(wrapper)
-
-        #Redesignes a maximum of 10 times
+        #Inserts LLM-generated function into full mutation code
+        mutation_code = textwrap.indent(self.current_mutation, "    ")
+        wrapper_text = self.mutation_wrapper.replace("INSERT_CURRENT_MUTATION_HERE", mutation_code)
+        print(wrapper_text)
+        
+        #Will attempt to redesign a limited number of times
         for i in range(5): 
-            #Detects syntax errors
             try:
-                compile(wrapper, "<sandbox>", "exec")
+                compile(wrapper_text, "<sandbox>", "exec")
+            
+                #Execute the code in the sandbox
+                response = sandbox.process.code_run(wrapper_text)
+
+                print("Successfully executed")
+                #TODO: Add a timeout - give it 30 seconds to produce code
+
+                #Must convert the pickled object back to gp.Individual form
+                output = unpickle_daytona_file("result", sandbox)
+                print(f"Output string: {output}")
+
+                return output
             except SyntaxError as e:
                 print("Generated code has a syntax error:")
                 print(e)
                 print("Line:", e.lineno)
                 print("Text:", e.text)
-                raise
 
-            try:
-                #Execute the code in the sandbox
-                #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
-                response = sandbox.process.code_run(wrapper)
-
-                #TODO: Add a timeout - give it 30 seconds to produce code
-
-                print("Succesfully Executed.")
-                error = sandbox.fs.download_file("error.txt")
-                print(error.decode("utf-8"))
-
-                output = unpickle_daytona_file("result", sandbox)
-                print(f"Output string: {output}")
-                print(type(output))
-
-                return output
-            except Exception as e:
-                #Prints error
-                try:
-                    error = sandbox.fs.download_file("error.txt")
-                    print("Error occured::")
-                    print(error.decode("utf-8"))
-                except Exception:
-                    print("No error.txt written - failure occurred before try/except")
-
+                #If an error occurs, attempt to redesign the LLM function
                 self.redesign_prompt(individual, llm_client, sandbox)
-            finally:
-                pass #TODO: Sort this out. Clean sandbox?
 
-        #TODO: Raising this in right place?
+            except Exception as e:
+                error = sandbox.fs.download_file("error.txt")
+                print("Error occured:")
+                print(error.decode("utf-8")) #Prints error log
+
+                #If an error occurs, attempt to redesign the LLM function
+                self.redesign_prompt(individual, llm_client, sandbox)
+
         raise Exception("Too many attempts to generate code - redesign the LLM prompt")
     
     def redesign_prompt(self, individual, llm_client, sandbox):
+        print("Redesigning mutation operator...")
+
         #Gets LLM Prompt from file
-        with open("LLMPromptMutation.txt", "rb") as f:
+        with open("docs/LLMPromptMutation.txt", "rb") as f:
             prompt = f.read()
 
+        #TODO: Create a counter of how many time it retries
         code = ""
-
+        #Keeps generating until correct format is produced
         while True:
-            try:
-                response = llm_client.chat.completions.create(
-                            model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
-                            temperature=0.95,
-                            messages=[
-                            {
-                                "role": "user",
-                                "content": prompt
-                            }
-                            ]
-                        )
+            response = llm_client.chat.completions.create(
+                model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+                temperature=0.95,
+                messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+                ]
+            )
                 
-                code = response.choices[0].message.content
-            except ValueError:
-                #TODO: WE can remove this - only used it when we got LLM to make a choice
-                print("Value Error - retrying")
-                pass
+            code = response.choices[0].message.content
 
+            #Must contain the function
             if "def mutate_individual(" in code:
                 break
-            else:
-                print("No valid function found - retrying")
 
-        self.current_mutation = code
+        #Saves the resulting function - can be reaccessed
         self.current_mutation = clean_llm_output(code)
-
-    def mutate(self, individual, client, base_prompt):
-        """Mutates the specified individual 
-
-        Args:
-            individual (Individual): _description_
-            client (Together): TogetherAI client instance
-            base_prompt (string): Base prompt used to form part of the LLM input
-
-        Returns:
-            Tuple: A mutated tree (from the original individual)
-        """
-        #TODO: Identify a point at which evolution stagnates
-
-        #For now, we will use custom mutate randomly
-        self.createMutationPrompt(base_prompt, individual)
-        if random.random() < 0.00:
-            #Custom LLM Mutation
-            return self.selectMutation_LLM(individual, client, base_prompt)
-        else:
-            #Otherwise, just perform mutation as normal
-            return gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)

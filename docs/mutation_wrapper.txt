@@ -1,0 +1,49 @@
+with open("error.txt", "w") as f:
+    f.write("Execution started...\n")
+
+try: 
+INSERT_CURRENT_MUTATION_HERE
+
+    import os
+    import pickle
+    from deap import base, creator, tools, gp
+    import math
+    import operator
+    import gp_primitives
+    from functools import partial
+    import random
+
+    if not hasattr(creator, "FitnessMin"):
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+
+    if not hasattr(creator, "Individual"):
+        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
+
+    #Load pickled objects
+    with open("pset.pkl", "rb") as f:
+        pset = pickle.load(f)
+    
+    with open("individual.pkl", "rb") as f:
+        individual = pickle.load(f)
+    
+    #Run mutation
+    result = mutate_individual(individual, pset)
+
+    #Verifies correct type (gp.Individual)
+    with open("error.txt", "a") as f:
+        if not isinstance(result[0], gp.PrimitiveTree):
+            f.write("Invalid Type:" + os.linesep)
+            f.write(str(type(result[0])) + os.linesep)
+            raise TypeError
+
+    #Save result
+    with open("result.pkl", "wb") as f:
+        pickle.dump(result, f)
+
+except Exception as e:
+    import traceback
+    import os
+    with open("error.txt", "a") as f:
+        f.write("Error occured" + os.linesep)
+        f.write(traceback.format_exc() + os.linesep)
+    raise

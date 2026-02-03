@@ -18,11 +18,11 @@ def get_string_from_individual(individual_obj):
     return ind_str
 
 def pickle_object(obj, file_name):
-    with open(f"{file_name}.pkl", "wb") as f:
+    with open(f"temp/{file_name}.pkl", "wb") as f:
         pickle.dump(obj, f)
 
 def unpickle_object(file_name):
-    with open(f"{file_name}.pkl", "rb") as f:
+    with open(f"temp/{file_name}.pkl", "rb") as f:
         obj = pickle.load(f)
 
     return obj
@@ -30,7 +30,7 @@ def unpickle_object(file_name):
 def unpickle_daytona_file(file_name, sandbox):
     content = sandbox.fs.download_file(f"{file_name}.pkl")
 
-    with open("new_individual.pkl", "wb") as f:
+    with open("temp/new_individual.pkl", "wb") as f:
         f.write(content)
 
     obj = unpickle_object("new_individual")
