@@ -60,8 +60,10 @@ class CustomMutate():
 
         #TODO: way to make this cleaner?
         wrapper=f"""
+import os
+
 with open("error.txt", "w") as f:
-    f.write("Running...")
+    f.write("Running..." + os.linesep)
 
 try: 
 {textwrap.indent(self.current_mutation, "    ")}
@@ -81,7 +83,7 @@ try:
         creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
 
     with open("error.txt", "a") as f:
-        f.write("Set up creator")
+        f.write("Set up creator" + os.linesep)
    
     #Load pickled objects
     with open("pset.pkl", "rb") as f:
@@ -91,23 +93,27 @@ try:
         individual = pickle.load(f)
     
     with open("error.txt", "a") as f:
-        f.write("Loaded pickles")
+        f.write("Loaded pickles" + os.linesep)
 
     #Run mutation
     result = mutate_individual(individual, pset)
 
     with open("error.txt", "a") as f:
-        f.write("Result:")
-        f.write(str(result))
+        f.write("Result:" + os.linesep)
+        f.write(str(result) + os.linesep)
 
     #Save result
     with open("result.pkl", "wb") as f:
         pickle.dump(result, f)
 
+    with open("error.txt", "a") as f:
+        f.write("Result saved" + os.linesep)
+
 except Exception as e:
     import traceback
     with open("error.txt", "a") as f:
-        f.write(traceback.format_exc())
+        f.write("Error occured" + os.linesep)
+        f.write(traceback.format_exc() + os.linesep)
     raise
 """
 
@@ -131,11 +137,6 @@ except Exception as e:
                 #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
                 response = sandbox.process.code_run(wrapper)
 
-                if hasattr(e, "exit_code"):
-                    print(f"Exit code: {e.exit_code}")
-
-                if hasattr(e, "stderr"):
-                    print(f"Error output: {e.stderr}")
                 #TODO: Add a timeout - give it 30 seconds to produce code
 
                 output = unpickle_daytona_file("result", sandbox)

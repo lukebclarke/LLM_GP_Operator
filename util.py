@@ -33,7 +33,9 @@ def unpickle_daytona_file(file_name, sandbox):
     with open("new_individual.pkl", "wb") as f:
         f.write(content)
 
-    return unpickle_object("new_individual.pkl")
+    obj = unpickle_object("new_individual")
+
+    return obj
 
 def clean_llm_output(output):
     output = output.strip()
