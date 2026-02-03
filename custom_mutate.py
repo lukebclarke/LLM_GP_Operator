@@ -58,17 +58,31 @@ class CustomMutate():
 
         #TODO: way to make this cleaner?
         wrapper=f"""
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    with open("error.txt", "w") as f:
+        f.write("UNCAUGHT EXCEPTION:\n")
+        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    
+sys.excepthook = handle_exception
+
 {self.current_mutation}
 
-try:    
-    import pickle
-    import math
-    import operator
-    from gp_primitives import protectedDiv
-    from functools import partial
-    import random
-    from deap import base, creator, tools, gp
+import pickle
+from deap import base, creator, tools, gp
+import math
+import operator
+import gp_primitives
+from functools import partial
+import random
 
+if not hasattr(creator, "FitnessMin"):
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+
+if not hasattr(creator, "Individual"):
+    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
+
+try:    
     with open("pset.pkl", "rb") as f:
         pset = pickle.load(f)
 
@@ -83,7 +97,7 @@ try:
     with open("result.pkl", "wb") as f:
         pickle.dump(result, f)
 
-except BaseException as e:
+except Exception as e:
     import traceback
     with open("error.txt", "w") as f:
         f.write(traceback.format_exc())
@@ -99,20 +113,20 @@ except BaseException as e:
                 #Execute the code in the sandbox
                 #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
                 response = sandbox.process.code_run(wrapper)
+
+                if hasattr(e, "exit_code"):
+                    print(f"Exit code: {e.exit_code}")
+
+                if hasattr(e, "stderr"):
+                    print(f"Error output: {e.stderr}")
                 #TODO: Add a timeout - give it 30 seconds to produce code
-                
-                print("EXIT CODE:", response.exit_code)
-                if response.exit_code != 0:
-                    raise Exception(f"Error: {response.exit_code} {response.result}")
-                
-                #output = response.result
-                output = unpickle_daytona_file("result.pkl", sandbox)
+
+                output = unpickle_daytona_file("result", sandbox)
                 print(f"Output string: {output}")
+                print("unpickled")
 
                 return individual
-            except:
-                print("Code failed to execute - redesigning prompt")
-
+            except Exception as e:
                 #Prints error
                 try:
                     error = sandbox.fs.download_file("error.txt")

@@ -12,7 +12,7 @@ from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
-from gp_primitives import protectedDiv
+import gp_primitives
 
 #Visualisation
 import pygraphviz as pgv
@@ -45,7 +45,7 @@ pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
 pset.addPrimitive(operator.add, 2) 
 pset.addPrimitive(operator.sub, 2)
 pset.addPrimitive(operator.mul, 2)
-pset.addPrimitive(protectedDiv, 2)
+pset.addPrimitive(gp_primitives.protectedDiv, 2)
 pset.addPrimitive(operator.neg, 1)
 pset.addPrimitive(math.cos, 1)
 pset.addPrimitive(math.sin, 1)

@@ -20,8 +20,10 @@ The tree structure (prefix order and arity consistency) must remain valid.
 Ephemeral constants must be handled by selecting from pset.terminals, not by instantiation.
 Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
 
+Always name the copy of the individual "mutated_individual". Use this name consistently in every line. Do not introduce typos or alternative spellings.
 Return the mutated individual as a tuple: `(mutated_individual,)`. Do not return any other objects or text.
 The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
+Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
 
 An example mutation method is given below:
         
@@ -50,3 +52,4 @@ for i, m, s in zip(range(size), mu, sigma):
 return individual,
         
 Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
+After generating the function, print a brief comment for each line explaining its purpose. Confirm that the variable names are consistent.
