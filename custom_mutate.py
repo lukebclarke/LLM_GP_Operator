@@ -98,9 +98,17 @@ try:
     #Run mutation
     result = mutate_individual(individual, pset)
 
+    #Verifies correct type (gp.Individual)
+    with open("error.txt", "a") as f:
+        f.write("Invalid Type:" + os.linesep)
+        f.write(str(type(result[0])) + os.linesep)
+
+        if not isinstance(result[0], gp.PrimitiveTree):
+            raise TypeError
+
     with open("error.txt", "a") as f:
         f.write("Result:" + os.linesep)
-        f.write(str(result) + os.linesep)
+        f.write(str(result[0]) + os.linesep)
 
     #Save result
     with open("result.pkl", "wb") as f:
@@ -139,17 +147,20 @@ except Exception as e:
 
                 #TODO: Add a timeout - give it 30 seconds to produce code
 
+                print("Succesfully Executed.")
+                error = sandbox.fs.download_file("error.txt")
+                print(error.decode("utf-8"))
+
                 output = unpickle_daytona_file("result", sandbox)
                 print(f"Output string: {output}")
-                print("unpickled")
+                print(type(output))
 
-                return individual
+                return output
             except Exception as e:
                 #Prints error
                 try:
-                    print("YO")
                     error = sandbox.fs.download_file("error.txt")
-                    print("PYTHON TRACEBACK:")
+                    print("Error occured::")
                     print(error.decode("utf-8"))
                 except Exception:
                     print("No error.txt written - failure occurred before try/except")

@@ -3,7 +3,7 @@ Write a Python function called 'mutate_individual(individual, pset)' that return
 Include all necessary imports, including random, and include the following line at the start:
 from deap import base, creator, tools, gp
 
-Assume 'individual' is a DEAP PrimitiveTree representing a GP individual, and 'pset' is the DEAP PrimitiveSet used to generate it.
+Assume 'individual' is a DEAP gp.PrimitiveTree representing a GP individual, and 'pset' is the DEAP PrimitiveSet used to generate it.
 
 Define a mutation probability 'indpb' (probability of mutating each node) inside the function. You may also define other parameters if needed and document them in comments.
 
@@ -14,6 +14,7 @@ Use only gp.PrimitiveTree, gp.Primitive, gp.Terminal, and standard Python operat
 
 Do NOT import or reference any DEAP APIs that are not explicitly documented.
 Do NOT create GP nodes manually (__class__(), constructors, or factories are forbidden).
+The final individual MUST be a valid gp.PrimitiveTree.
 Do NOT assume the existence of classes like EphemeralConstant, PrimitiveTree, or helper functions such as get_leaves.
 All replacement nodes must be selected from pset.primitives or pset.terminals.
 The tree structure (prefix order and arity consistency) must remain valid.
@@ -21,7 +22,7 @@ Ephemeral constants must be handled by selecting from pset.terminals, not by ins
 Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
 
 Always name the copy of the individual "mutated_individual". Use this name consistently in every line. Do not introduce typos or alternative spellings.
-Return the mutated individual as a tuple: `(mutated_individual,)`. Do not return any other objects or text.
+Return the mutated individual as a tuple: `(mutated_individual,)`. It must be of type gp.PrimitiveTree. Do not return any other objects or text.
 The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
 Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
 
