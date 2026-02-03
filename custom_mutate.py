@@ -20,6 +20,8 @@ from util import tree_to_list
 from util import list_to_tree
 from util import unpickle_daytona_file
 
+import textwrap 
+
 class CustomMutate():
     def __init__(self, client, base_prompt, pset, toolbox):
         self.client = client
@@ -58,40 +60,45 @@ class CustomMutate():
 
         #TODO: way to make this cleaner?
         wrapper=f"""
+with open("error.txt", "w") as f:
+    f.write("Running...")
 
-def handle_exception(exc_type, exc_value, exc_traceback):
-    with open("error.txt", "w") as f:
-        f.write("UNCAUGHT EXCEPTION:\n")
-        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
-    
-sys.excepthook = handle_exception
+try: 
+{textwrap.indent(self.current_mutation, "    ")}
 
-{self.current_mutation}
+    import pickle
+    from deap import base, creator, tools, gp
+    import math
+    import operator
+    #import gp_primitives
+    from functools import partial
+    import random
 
-import pickle
-from deap import base, creator, tools, gp
-import math
-import operator
-import gp_primitives
-from functools import partial
-import random
+    if not hasattr(creator, "FitnessMin"):
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 
-if not hasattr(creator, "FitnessMin"):
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    if not hasattr(creator, "Individual"):
+        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
 
-if not hasattr(creator, "Individual"):
-    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin)
-
-try:    
+    with open("error.txt", "a") as f:
+        f.write("Set up creator")
+   
+    #Load pickled objects
     with open("pset.pkl", "rb") as f:
         pset = pickle.load(f)
-
-    #Load pickled objects
+    
     with open("individual.pkl", "rb") as f:
         individual = pickle.load(f)
+    
+    with open("error.txt", "a") as f:
+        f.write("Loaded pickles")
 
     #Run mutation
     result = mutate_individual(individual, pset)
+
+    with open("error.txt", "a") as f:
+        f.write("Result:")
+        f.write(str(result))
 
     #Save result
     with open("result.pkl", "wb") as f:
@@ -99,7 +106,7 @@ try:
 
 except Exception as e:
     import traceback
-    with open("error.txt", "w") as f:
+    with open("error.txt", "a") as f:
         f.write(traceback.format_exc())
     raise
 """
@@ -109,6 +116,16 @@ except Exception as e:
 
         #Redesignes a maximum of 10 times
         for i in range(5): 
+            #Detects syntax errors
+            try:
+                compile(wrapper, "<sandbox>", "exec")
+            except SyntaxError as e:
+                print("Generated code has a syntax error:")
+                print(e)
+                print("Line:", e.lineno)
+                print("Text:", e.text)
+                raise
+
             try:
                 #Execute the code in the sandbox
                 #response = sandbox.process.code_run(wrapper, params=CodeRunParams(argv=[str_individual]))
@@ -129,10 +146,10 @@ except Exception as e:
             except Exception as e:
                 #Prints error
                 try:
+                    print("YO")
                     error = sandbox.fs.download_file("error.txt")
                     print("PYTHON TRACEBACK:")
-                    print(error)
-                    sandbox.fs.delete_file("workspace/file.txt")
+                    print(error.decode("utf-8"))
                 except Exception:
                     print("No error.txt written - failure occurred before try/except")
 
