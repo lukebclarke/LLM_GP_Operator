@@ -5,7 +5,9 @@ from deap import tools
 from deap import gp
 
 import pickle
+import importlib
 from daytona import Daytona
+import sys
 
 def get_individual_from_string(individual_string, pset):
     individual = gp.PrimitiveTree.from_string(individual_string, pset)
@@ -60,3 +62,20 @@ def list_to_tree(nodes, pset):
         return gp.PrimitiveTree.from_string(tree_str, pset)
     except:
         raise Exception("Invalid Tree - may be using invalid operators")
+    
+def load_mutation_module(module_name, filepath):
+    #Delete previous module
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+
+    #Load in new module
+    spec = importlib.util.spec_from_file_location(module_name, filepath)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot create module spec for {filepath}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+
+    print(module)
+    return module
