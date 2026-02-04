@@ -51,7 +51,7 @@ class DynamicOperators():
         self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
         
         # Defines genetic operators
-        client, mutation_prompt = self.setupLLM("docs/LLMPromptMutation.txt") #Custom operators require LLM input
+        self.client = self.setupLLM("docs/LLMPromptMutation.txt") #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
         self.toolbox.register("evaluate", self.evaluateIndividual, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
@@ -59,10 +59,9 @@ class DynamicOperators():
         self.toolbox.register("mate", gp.cxOnePoint)
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
-        self.mutator = CustomMutate(client, mutation_prompt, self.pset, self.toolbox)
-        self.toolbox.register("mutate", self.mutator.llm_custom_mutate, llm_client=client, sandbox=self.sandbox, base_prompt=mutation_prompt) #Uses custom mutation function
+        self.mutator = CustomMutate(self.client, self.pset, self.toolbox)
+        self.toolbox.register("mutate", self.mutator.mutate, llm_client=self.client, sandbox=self.sandbox) #Uses custom mutation function
         self.toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
-
         self.toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
         #Initialises population
@@ -90,14 +89,8 @@ class DynamicOperators():
             raise Exception("Together API key not found")
 
         client = Together(api_key=api_key)
-        
-        #Gets prompt for custom mutation
-        f = open(mutation_prompt_file)
-        base_mutation_prompt = f.read()
 
-        #TODO: Gets prompt for custom crossover
-
-        return client, base_mutation_prompt
+        return client
     
     def setupDaytona(self):
         daytonaClient = Daytona()
@@ -112,7 +105,6 @@ class DynamicOperators():
             sandbox.fs.upload_file(content, "gp_primitives.py")
 
         print("Sandbox initialised")
-
 
         return sandbox
 
@@ -131,10 +123,6 @@ class DynamicOperators():
                                     halloffame=self.hof, verbose=True)
         
         return pop, log, self.hof
-    
-    def updateMutationTechnique(*args):
-        #self.toolbox.register("mutate", self.mutator.mutate, client=client, base_prompt=mutation_prompt) #Uses custom mutation function
-        pass
         
     def check_stagnation(self, current_fitness):
         #There has been an improvement
@@ -150,10 +138,10 @@ class DynamicOperators():
             print("No improvement, less than k generations")
         #There has not been an improvement in k generations
         elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement >= self.k:
-            print("Redesign mutation operator")
-            pass
+            print("Redesigning mutation operator")
+            self.mutator.redesign_mutation(self.client)
         else:
-            raise Exception("Error tracking previous fitnesses")
+            raise Exception("Error tracking fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
         logbook = tools.Logbook()

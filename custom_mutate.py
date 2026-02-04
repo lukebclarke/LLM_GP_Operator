@@ -23,22 +23,22 @@ from util import unpickle_daytona_file
 import textwrap 
 
 class CustomMutate():
-    def __init__(self, client, base_prompt, pset, toolbox):
+    def __init__(self, client, pset, toolbox, max_num_retries=5):
         self.client = client
-        self.base_prompt = base_prompt
         self.pset = pset
         self.toolbox = toolbox
         self.current_mutation = None #TODO: Track the design we are currently using, and mutate according to this design
+        self.max_num_retries = max_num_retries #Number of times to retry generating LLM response 
 
-        #Wrapper for ::< Code
+        #Wrapper for code
         with open("docs/mutation_wrapper.txt", "r") as f:
             self.mutation_wrapper = f.read()
-    
-    def llm_custom_mutate(self, individual, llm_client, sandbox, base_prompt):
-        #TODO: Temporary - redesign to identify when stagnating. We should start with uniform mutation, instead of redesigning from the start.
-        if self.current_mutation == None:
-            self.redesign_prompt(individual, llm_client, sandbox)
 
+        #Gets LLM Prompt from file
+        with open("docs/LLMPromptMutation.txt", "rb") as f:
+            self.llm_prompt = f.read()
+    
+    def llm_custom_mutate(self, individual, llm_client, sandbox):
         #Pickles objects - enables transfer to sandbox environment
         pickle_object(individual, "individual")
         pickle_object(self.pset, "pset")
@@ -55,24 +55,22 @@ class CustomMutate():
         #Inserts LLM-generated function into full mutation code
         mutation_code = textwrap.indent(self.current_mutation, "    ")
         wrapper_text = self.mutation_wrapper.replace("INSERT_CURRENT_MUTATION_HERE", mutation_code)
-        print(wrapper_text)
         
-        #Will attempt to redesign a limited number of times
-        for i in range(5): 
+        #Attempts to execute - redesigns mutation if fails
+        for i in range(self.max_num_retries): 
             try:
                 compile(wrapper_text, "<sandbox>", "exec")
             
                 #Execute the code in the sandbox
                 response = sandbox.process.code_run(wrapper_text)
 
-                print("Successfully executed")
                 #TODO: Add a timeout - give it 30 seconds to produce code
 
-                #Must convert the pickled object back to gp.Individual form
+                #Must convert the pickled object back desired form
                 output = unpickle_daytona_file("result", sandbox)
-                print(f"Output string: {output}")
 
                 return output
+            
             except SyntaxError as e:
                 print("Generated code has a syntax error:")
                 print(e)
@@ -92,12 +90,8 @@ class CustomMutate():
 
         raise Exception("Too many attempts to generate code - redesign the LLM prompt")
     
-    def redesign_prompt(self, individual, llm_client, sandbox):
+    def redesign_mutation(self, llm_client):
         print("Redesigning mutation operator...")
-
-        #Gets LLM Prompt from file
-        with open("docs/LLMPromptMutation.txt", "rb") as f:
-            prompt = f.read()
 
         #TODO: Create a counter of how many time it retries
         code = ""
@@ -109,7 +103,7 @@ class CustomMutate():
                 messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": self.llm_prompt
                 }
                 ]
             )
@@ -122,3 +116,10 @@ class CustomMutate():
 
         #Saves the resulting function - can be reaccessed
         self.current_mutation = clean_llm_output(code)
+
+    def mutate(self, individual, llm_client, sandbox):
+        #By default, use uniform mutation
+        if self.current_mutation == None:
+            return gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
+        else:
+            return self.llm_custom_mutate(individual, llm_client, sandbox)
