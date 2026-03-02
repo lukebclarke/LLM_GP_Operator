@@ -148,6 +148,16 @@ class DynamicOperators():
         logbook = tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
 
+        #Tracks statistics for LLM
+        history = {
+            "avg_fitness": [],
+            "max_fitness": [],
+            "min_fitness": [],
+            "avg_size": [],
+            "max_size": [],
+            "min_size": []
+        }
+
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in self.pop if not ind.fitness.valid]
         fitnesses = self.toolbox.map(self.toolbox.evaluate, invalid_ind)
@@ -160,7 +170,7 @@ class DynamicOperators():
         record = self.mstats.compile(self.pop) if self.mstats else {}
         logbook.record(gen=0, nevals=len(invalid_ind), **record)
         if verbose:
-            print(logbook.stream)
+            print(logbook)
 
         # Begin the generational process
         for gen in range(1, ngen + 1):
@@ -190,6 +200,17 @@ class DynamicOperators():
                 print(logbook.stream)
 
             avg_fitness = record['fitness']['avg']
+
+            history["avg_fitness"].append(float(record["fitness"]["avg"]))
+            history["max_fitness"].append(float(record["fitness"]["max"]))
+            history["min_fitness"].append(float(record["fitness"]["min"]))
+            history["avg_size"].append(float(record["size"]["avg"]))
+            history["max_size"].append(float(record["size"]["max"]))
+            history["min_size"].append(float(record["size"]["min"]))
+
+            # Updates LLM prompt with updated logbook
+            self.mutator.update_llm_prompt(history)
+
             self.check_stagnation(avg_fitness)
 
         self.sandbox.delete()

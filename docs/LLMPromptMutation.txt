@@ -1,3 +1,7 @@
+Your task is to define a custom mutation function with the DEAP framework. This is because evolution in the tree is stagnating. Here is the current logbook of progress:
+
+INSERT_LOGBOOK_HERE
+
 Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual as a tuple (mutated_individual,). 
 Include all necessary imports, including random, and include the following line at the start:
 from deap import base, creator, tools, gp
@@ -35,20 +39,10 @@ mu = 0.0
 sigma = 1.0
 indpb = 0.1
 
-size = len(individual)
-if not isinstance(mu, Sequence):
-    mu = repeat(mu, size)
-elif len(mu) < size:
-    raise IndexError("mu must be at least the size of individual: %d < %d" % (len(mu), size))
-if not isinstance(sigma, Sequence):
-    sigma = repeat(sigma, size)
-elif len(sigma) < size:
-    raise IndexError("sigma must be at least the size of individual: %d < %d" % (len(sigma), size))
-
-for i, m, s in zip(range(size), mu, sigma):
-    if random.random() < indpb:
-        individual[i] += random.gauss(m, s)
-
+index = random.randrange(len(individual))
+slice_ = individual.searchSubtree(index)
+type_ = individual[index].ret
+individual[slice_] = expr(pset=pset, type_=type_)
 return individual,
         
 Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 

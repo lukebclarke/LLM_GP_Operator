@@ -38,7 +38,8 @@ class CustomMutate():
 
         #Gets LLM Prompt from file
         with open("docs/LLMPromptMutation.txt", "r") as f:
-            self.llm_prompt = f.read()
+            self.original_llm_prompt = f.read()
+        self.llm_prompt = None
 
         #Enables us to import mutation design stored in temp folder 
         sys.path.append('/temp')
@@ -152,6 +153,11 @@ class CustomMutate():
                 #TODO: Redesign mutation?
         else:
             raise Exception("No module loaded for custom mutation") #TODO: Sort out error handling
+
+    def update_llm_prompt(self, history):
+        #LLMs can deal with JSON
+        formatted_history = json.dumps(history, indent=2)
+        self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
 
     def redesign_mutation(self, llm_client):
         #TODO: Create a counter of how many time it retries
