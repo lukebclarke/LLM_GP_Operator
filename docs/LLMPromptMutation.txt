@@ -21,7 +21,7 @@ Ephemeral constants must be handled by selecting from pset.terminals, not by ins
 Do not assume numeric operations on non-numeric nodes. Do not use any DEAP methods that do not exist.
 
 Always name the copy of the individual "mutated_individual". Use this name consistently in every line. Do not introduce typos or alternative spellings.
-Return the mutated individual as a tuple: `(mutated_individual,)`. It must be of type gp.PrimitiveTree. Do not return any other objects or text.
+Return the mutated individual, of type individual: `(mutated_individual,)`. It must be of type gp.PrimitiveTree. Do not return any other objects or text.
 The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
 Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
 

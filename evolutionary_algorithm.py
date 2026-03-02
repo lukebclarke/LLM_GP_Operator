@@ -90,19 +90,23 @@ class DynamicOperators():
 
         client = Together(api_key=api_key)
 
+        print("LLM Setup")
         return client
     
     def setupDaytona(self):
+        #TODO: Timeout after certain amount of time, and retry creating client
         daytonaClient = Daytona()
         sandbox = daytonaClient.create()
         
         #Install DEAP
         sandbox.process.exec("python -m pip install deap==1.4.1")
+        print("DEAP installed")
 
         #Provide functions for pset
         with open("gp_primitives.py", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "gp_primitives.py")
+        print("Primitives copied")
 
         print("Sandbox initialised")
 
@@ -131,14 +135,11 @@ class DynamicOperators():
         if current_fitness < self.prev_avg_fitness:
             self.prev_avg_fitness = current_fitness
             self.gens_since_improvement = 0
-            print("Improvement in fitness")
         #There has not been an improvement, but less than k generations have surpassed
         elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement < self.k:
             self.gens_since_improvement += 1
-            print("No improvement, less than k generations")
         #There has not been an improvement in k generations
         elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement >= self.k:
-            print("Redesigning mutation operator")
             self.mutator.redesign_mutation(self.client)
         else:
             raise Exception("Error tracking fitnesses")

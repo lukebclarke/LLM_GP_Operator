@@ -91,8 +91,6 @@ class CustomMutate():
                 output = unpickle_daytona_file("result", sandbox)
 
                 print("Executed in Daytona")
-                print(output)
-                print(type(output[0]))
 
                 self.design_validated = True
 
@@ -137,20 +135,17 @@ class CustomMutate():
             print("Saving...")
             with open("temp/mutation_design.py", "w") as f:
                 f.write(self.current_mutation)
-            print(self.current_mutation)
             self.current_mutation_module = load_mutation_module("llm_mutate", "temp/mutation_design.py")
 
         #Attempt to mutate locally
         if self.current_mutation_module != None:
             try:
                 ind = self.current_mutation_module.mutate_individual(individual, self.pset)
-                print("Mutation successful")
 
                 return ind
             
             #Redesign if code is unable to execute locally
             except Exception as e:
-                print(f"Mutation failure: {str(individual)}")
 
                 #For now, just skip mutation
                 return individual,
