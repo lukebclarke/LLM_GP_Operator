@@ -72,13 +72,13 @@ class CustomMutate():
         with open("temp/pset.pkl", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "pset.pkl")
-
-        #Inserts LLM-generated function into full mutation code
-        mutation_code = textwrap.indent(self.current_mutation, "    ")
-        wrapper_text = self.mutation_wrapper.replace("INSERT_CURRENT_MUTATION_HERE", mutation_code)
         
         #Attempts to execute - redesigns mutation if fails
         for i in range(self.max_num_retries): 
+            #Inserts LLM-generated function into full mutation code
+            mutation_code = textwrap.indent(self.current_mutation, "    ")
+            wrapper_text = self.mutation_wrapper.replace("INSERT_CURRENT_MUTATION_HERE", mutation_code)
+
             try:
                 compile(wrapper_text, "<sandbox>", "exec")
             
@@ -89,6 +89,10 @@ class CustomMutate():
 
                 #Must convert the pickled object back to desired form
                 output = unpickle_daytona_file("result", sandbox)
+
+                print("Executed in Daytona")
+                print(output)
+                print(type(output[0]))
 
                 self.design_validated = True
 
@@ -130,20 +134,28 @@ class CustomMutate():
 
         #Ensure that the Python design is saved locally
         if self.current_mutation_module == None:
+            print("Saving...")
             with open("temp/mutation_design.py", "w") as f:
                 f.write(self.current_mutation)
+            print(self.current_mutation)
             self.current_mutation_module = load_mutation_module("llm_mutate", "temp/mutation_design.py")
 
         #Attempt to mutate locally
         if self.current_mutation_module != None:
             try:
                 ind = self.current_mutation_module.mutate_individual(individual, self.pset)
+                print("Mutation successful")
 
                 return ind
             
             #Redesign if code is unable to execute locally
             except Exception as e:
-                self.redesign_mutation(self.client)
+                print(f"Mutation failure: {str(individual)}")
+
+                #For now, just skip mutation
+                return individual,
+            
+                #TODO: Redesign mutation?
         else:
             raise Exception("No module loaded for custom mutation") #TODO: Sort out error handling
 
@@ -152,9 +164,7 @@ class CustomMutate():
         code = ""
         #Keeps generating until correct format is produced
         while True:
-            print(self.llm_prompt)
 
-            print("Attempting to redesign")
             response = llm_client.chat.completions.create(
                 model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
                 temperature=0.95,
@@ -168,17 +178,17 @@ class CustomMutate():
                 
             code = response.choices[0].message.content
 
-            print(code)
-
             #Must contain the function
             if "def mutate_individual(" in code:
                 break
 
         #Saves the resulting function - can be reaccessed
         self.current_mutation = clean_llm_output(code)
-        print(self.current_mutation)
         self.design_validated = False #TODO: Merge these variables
         self.current_mutation_module = None
+
+        print("Operator redesigned...")
+        print(self.current_mutation)
 
     def mutate(self, individual, llm_client, sandbox):
         #By default, use uniform mutation
