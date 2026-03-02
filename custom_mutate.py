@@ -37,7 +37,7 @@ class CustomMutate():
             self.mutation_wrapper = f.read()
 
         #Gets LLM Prompt from file
-        with open("docs/LLMPromptMutation.txt", "rb") as f:
+        with open("docs/LLMPromptMutation.txt", "r") as f:
             self.llm_prompt = f.read()
 
         #Enables us to import mutation design stored in temp folder 
@@ -148,12 +148,13 @@ class CustomMutate():
             raise Exception("No module loaded for custom mutation") #TODO: Sort out error handling
 
     def redesign_mutation(self, llm_client):
-        print("Redesigning mutation operator...")
-
         #TODO: Create a counter of how many time it retries
         code = ""
         #Keeps generating until correct format is produced
         while True:
+            print(self.llm_prompt)
+
+            print("Attempting to redesign")
             response = llm_client.chat.completions.create(
                 model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
                 temperature=0.95,
@@ -167,12 +168,15 @@ class CustomMutate():
                 
             code = response.choices[0].message.content
 
+            print(code)
+
             #Must contain the function
             if "def mutate_individual(" in code:
                 break
 
         #Saves the resulting function - can be reaccessed
         self.current_mutation = clean_llm_output(code)
+        print(self.current_mutation)
         self.design_validated = False #TODO: Merge these variables
         self.current_mutation_module = None
 
