@@ -141,14 +141,13 @@ class CustomMutate():
         if self.current_mutation_module != None:
             try:
                 ind = self.current_mutation_module.mutate_individual(individual, self.pset)
-
                 return ind
             
             #Redesign if code is unable to execute locally
             except Exception as e:
-
+                ind = (individual,)
                 #For now, just skip mutation
-                return individual,
+                return ind
             
                 #TODO: Redesign mutation?
         else:
@@ -188,7 +187,8 @@ class CustomMutate():
     def mutate(self, individual, llm_client, sandbox):
         #By default, use uniform mutation
         if self.current_mutation == None:
-            return gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
+            ind = gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
+            return ind
         #Validates the design by using Daytona to execute the code
         elif self.current_mutation != None and self.design_validated == False:
             return self.llm_custom_mutate_daytona(individual, llm_client, sandbox)
