@@ -213,6 +213,7 @@ class DynamicOperators():
 
             self.check_stagnation(avg_fitness)
 
-        self.sandbox.delete()
-
         return self.pop, logbook, self.hof
+    
+    def shutdown_sandbox(self):
+        self.sandbox.delete()
