@@ -43,6 +43,11 @@ def clean_llm_output(output):
     output = output.strip()
     output = output.replace("```", "")
     output = output.replace("python", "")
+
+    #Common bug where mutated_individual keeps getting mistyped
+    if "mutuated_individual" in output:
+        generated_code = generated_code.replace("mutuated_individual", "mutated_individual")
+
     
     return output
 
