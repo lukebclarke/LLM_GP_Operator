@@ -145,6 +145,9 @@ class DynamicOperators():
             raise Exception("Error tracking fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
+        self.gens_since_improvement = 0
+        self.prev_avg_fitness = 100000
+
         logbook = tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
 
