@@ -82,5 +82,4 @@ def load_mutation_module(module_name, filepath):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
 
-    print(module)
     return module

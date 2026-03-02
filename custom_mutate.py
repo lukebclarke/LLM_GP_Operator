@@ -46,6 +46,12 @@ class CustomMutate():
     
     #TODO: Define custom exception classes, and add to doc strings
 
+    def reset_mutator(self):
+        self.current_mutation = None 
+        self.current_mutation_module = None
+        self.design_validated = False
+        self.llm_prompt = None
+
     def llm_custom_mutate_daytona(self, individual, llm_client, sandbox):
         """Used to execute LLM-generated code using the Daytona sandbox. Verifies that the code is able to execute successfully, and that it is trusted.
 
@@ -69,6 +75,7 @@ class CustomMutate():
         with open("temp/individual.pkl", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "individual.pkl")
+            
 
         with open("temp/pset.pkl", "rb") as f:
             content = f.read()
@@ -139,6 +146,11 @@ class CustomMutate():
         if self.current_mutation_module != None:
             try:
                 ind = self.current_mutation_module.mutate_individual(individual, self.pset)
+
+                #Ensure type individual
+                if not isinstance(ind[0], creator.Individual):
+                    ind[0] = creator.Individual(ind[0])
+
                 return ind
             
             #Redesign if code is unable to execute locally

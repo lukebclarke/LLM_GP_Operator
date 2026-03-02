@@ -98,13 +98,13 @@ def main():
     algorithm.shutdown_sandbox()
 
     #Convert to numpy to find average
-    all_fit_avg_ea_runs = np.array(all_fit_avg_ea_runs)
-    all_size_avg_ea_runs = np.array(all_size_avg_ea_runs)
-    all_fit_min_ea_runs = np.array(all_fit_min_ea_runs)
+    all_fit_avg_ea_runs = np.array(all_fit_avg_ea)
+    all_size_avg_ea_runs = np.array(all_size_avg_ea)
+    all_fit_min_ea_runs = np.array(all_fit_min_ea)
 
-    all_fit_avg_ao_runs = np.array(all_fit_avg_ao_runs)
-    all_size_avg_ao_runs = np.array(all_size_avg_ao_runs)
-    all_fit_min_ao_runs = np.array(all_fit_min_ao_runs)
+    all_fit_avg_ao_runs = np.array(all_fit_avg_ao)
+    all_size_avg_ao_runs = np.array(all_size_avg_ao)
+    all_fit_min_ao_runs = np.array(all_fit_min_ao)
 
     #Find mean of runs across each generation
     fit_avg_ea_mean = np.mean(all_fit_avg_ea_runs, axis=0)

@@ -32,7 +32,6 @@ from custom_mutate import CustomMutate
 
 class DynamicOperators():
     def __init__(self, n, pset, k=2):
-        random.seed(318)
         self.n = n
         self.pset = pset
 
@@ -81,6 +80,13 @@ class DynamicOperators():
         self.gens_since_improvement = 0
         self.prev_avg_fitness = 100000
 
+    def reset_state(self):
+        self.pop = self.toolbox.population(n=300)
+        self.hof = tools.HallOfFame(1) #We track 1 best solution
+        self.gens_since_improvement = 0
+        self.prev_avg_fitness = 100000
+        self.mutator.reset_mutator()
+
     def setupLLM(self, mutation_prompt_file):
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
@@ -122,6 +128,8 @@ class DynamicOperators():
         return math.fsum(sqerrors) / len(points),
 
     def runSimpleEA(self):
+        self.reset_state()
+
         # Run GP - Simple Evolutionary Algorithm
         pop, log = algorithms.eaSimple(self.pop, self.toolbox, 0.5, 0.1, 40, stats=self.mstats,
                                     halloffame=self.hof, verbose=True)
@@ -145,8 +153,7 @@ class DynamicOperators():
             raise Exception("Error tracking fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
-        self.gens_since_improvement = 0
-        self.prev_avg_fitness = 100000
+        self.reset_state()
 
         logbook = tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
@@ -172,8 +179,6 @@ class DynamicOperators():
 
         record = self.mstats.compile(self.pop) if self.mstats else {}
         logbook.record(gen=0, nevals=len(invalid_ind), **record)
-        if verbose:
-            print(logbook)
 
         # Begin the generational process
         for gen in range(1, ngen + 1):
@@ -213,6 +218,10 @@ class DynamicOperators():
 
             # Updates LLM prompt with updated logbook
             self.mutator.update_llm_prompt(history)
+
+            #Solution found - early stopping
+            if record["fitness"]["min"] < 0.00001:
+                break
 
             self.check_stagnation(avg_fitness)
 
