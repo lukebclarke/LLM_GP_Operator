@@ -91,8 +91,6 @@ class CustomMutate():
                 #Must convert the pickled object back to desired form
                 output = unpickle_daytona_file("result", sandbox)
 
-                print("Executed in Daytona")
-
                 self.design_validated = True
 
                 return output
@@ -133,7 +131,6 @@ class CustomMutate():
 
         #Ensure that the Python design is saved locally
         if self.current_mutation_module == None:
-            print("Saving...")
             with open("temp/mutation_design.py", "w") as f:
                 f.write(self.current_mutation)
             self.current_mutation_module = load_mutation_module("llm_mutate", "temp/mutation_design.py")
@@ -186,9 +183,6 @@ class CustomMutate():
         self.current_mutation = clean_llm_output(code)
         self.design_validated = False #TODO: Merge these variables
         self.current_mutation_module = None
-
-        print("Operator redesigned...")
-        print(self.current_mutation)
 
     def mutate(self, individual, llm_client, sandbox):
         #By default, use uniform mutation

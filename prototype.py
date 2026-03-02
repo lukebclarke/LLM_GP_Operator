@@ -83,6 +83,7 @@ def main():
     all_fit_min_ao = []
 
     for i in range(num_runs):
+        print("Run number: ", i)
         pop_ao, log_ao, hof_ao = algorithm.runDynamicEA(verbose=True)
         pop_ea, log_ea, hof_ea = algorithm.runSimpleEA()
 
