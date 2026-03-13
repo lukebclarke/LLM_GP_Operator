@@ -55,6 +55,23 @@ def plot_graph(metric_name, metric_values):
 
     plt.show()
 
+def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2):
+    xdata1 = list(range(0, len(metric_values1), 1))
+    ydata1 = metric_values1
+
+    xdata2 = list(range(0, len(metric_values2), 1))
+    ydata2 = metric_values2
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    ax.plot(xdata1, ydata1, label=alg1_label) 
+    ax.plot(xdata2, ydata2, label=alg2_label) 
+    ax.set_xlabel("Generations")
+    ax.set_ylabel(metric_name)
+    ax.grid('on')
+
+    plt.show()
+
 
 #Defines Problem
 pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
@@ -120,15 +137,9 @@ def main():
     plot_tree(nodes, edges, labels)
 
     #Graphs
-    plot_graph("Average Size", size_avg_ea_mean)
-    plot_graph("Average Size", size_avg_ao_mean)
-
-    plot_graph("Average Fitness", fit_avg_ea_mean)
-    plot_graph("Average Fitness", fit_avg_ao_mean)
-
-    plot_graph("Minimum Fitness", fit_min_ea_mean)
-    plot_graph("Minimum Fitness", fit_min_ao_mean)
-
+    plot_comparison_graph("Average Size", "Standard", "Adaptive Operator", size_avg_ea_mean, size_avg_ao_mean)
+    plot_comparison_graph("Average Fitness", "Standard", "Adaptive Operator", fit_avg_ea_mean, fit_avg_ao_mean)
+    plot_comparison_graph("Minimum Fitness", "Standard", "Adaptive Operator", fit_min_ea_mean, fit_min_ao_mean)
 
 if __name__ == "__main__":
     main()
