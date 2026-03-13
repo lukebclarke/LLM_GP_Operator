@@ -55,6 +55,33 @@ def plot_graph(metric_name, metric_values):
 
     plt.show()
 
+def get_stats(all_fit_avg, all_size_avg, all_fit_min):
+    #Ensure all runs are of same length (e.g. padding)
+    max_length_alg = max((len(run)) for run in all_fit_avg)
+
+    padded_avg_fitnesses = []
+    padded_avg_size = []
+    padded_min_fit = []
+
+    #Finds padded metrics for each run
+    for i in range(len(all_fit_avg)):
+        padded_avg_fitnesses.append(all_fit_avg[i] + ([0] * (max_length_alg - len(all_fit_avg[i]))))
+        padded_avg_size.append(all_size_avg[i] + ([0] * (max_length_alg - len(all_size_avg[i]))))
+        padded_min_fit.append(all_fit_min[i] + ([0] * (max_length_alg - len(all_fit_min[i]))))
+
+    #Convert to numpy to find average
+    all_fit_avg_runs = np.array(padded_avg_fitnesses)
+    all_size_avg_runs = np.array(padded_avg_size)
+    all_fit_min_runs = np.array(padded_min_fit)
+
+    #Find mean of runs across each generation
+    fit_avg_mean = np.mean(all_fit_avg_runs, axis=0)
+    size_avg_mean = np.mean(all_size_avg_runs, axis=0)
+    fit_min_mean = np.mean(all_fit_min_runs, axis=0)
+
+    return fit_avg_mean, size_avg_mean, fit_min_mean
+
+
 def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2):
     xdata1 = list(range(0, len(metric_values1), 1))
     ydata1 = metric_values1
@@ -71,7 +98,6 @@ def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, m
     ax.grid('on')
 
     plt.show()
-
 
 #Defines Problem
 pset = gp.PrimitiveSet("MAIN", 1) #Program takes one input
@@ -114,32 +140,18 @@ def main():
 
     algorithm.shutdown_sandbox()
 
-    #Convert to numpy to find average
-    all_fit_avg_ea_runs = np.array(all_fit_avg_ea)
-    all_size_avg_ea_runs = np.array(all_size_avg_ea)
-    all_fit_min_ea_runs = np.array(all_fit_min_ea)
-
-    all_fit_avg_ao_runs = np.array(all_fit_avg_ao)
-    all_size_avg_ao_runs = np.array(all_size_avg_ao)
-    all_fit_min_ao_runs = np.array(all_fit_min_ao)
-
-    #Find mean of runs across each generation
-    fit_avg_ea_mean = np.mean(all_fit_avg_ea_runs, axis=0)
-    size_avg_ea_mean = np.mean(all_size_avg_ea_runs, axis=0)
-    fit_min_ea_mean = np.mean(all_fit_min_ea_runs, axis=0)
-
-    fit_avg_ao_mean = np.mean(all_fit_avg_ao_runs, axis=0)
-    size_avg_ao_mean = np.mean(all_size_avg_ao_runs, axis=0)
-    fit_min_ao_mean = np.mean(all_fit_min_ao_runs, axis=0)
+    #Gets statistics across all runs
+    ea_fit_avg, ea_size_avg, ea_fit_min = get_stats(all_fit_avg_ea, all_size_avg_ea, all_fit_min_ea)
+    ao_fit_avg, ao_size_avg, ao_fit_min = get_stats(all_fit_avg_ao, all_size_avg_ao, all_fit_min_ao)
 
     #Visualise best solution
     nodes, edges, labels = gp.graph(hof_ao[0])
     plot_tree(nodes, edges, labels)
 
     #Graphs
-    plot_comparison_graph("Average Size", "Standard", "Adaptive Operator", size_avg_ea_mean, size_avg_ao_mean)
-    plot_comparison_graph("Average Fitness", "Standard", "Adaptive Operator", fit_avg_ea_mean, fit_avg_ao_mean)
-    plot_comparison_graph("Minimum Fitness", "Standard", "Adaptive Operator", fit_min_ea_mean, fit_min_ao_mean)
+    plot_comparison_graph("Average Size", "Standard", "Adaptive Operator", ea_size_avg, ao_size_avg)
+    plot_comparison_graph("Average Fitness", "Standard", "Adaptive Operator", ea_fit_avg, ao_fit_avg)
+    plot_comparison_graph("Minimum Fitness", "Standard", "Adaptive Operator", ea_fit_min, ao_fit_min)
 
 if __name__ == "__main__":
     main()
