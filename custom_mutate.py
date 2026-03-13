@@ -173,9 +173,9 @@ class CustomMutate():
         code = ""
         #Keeps generating until correct format is produced
         while True:
-
+            #TODO: Pass model to function so we can use same model for mutation and crossover
             response = llm_client.chat.completions.create(
-                model="Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+                model="MiniMaxAI/MiniMax-M2.5",
                 temperature=0.95,
                 messages=[
                 {

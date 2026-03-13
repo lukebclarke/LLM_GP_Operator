@@ -153,6 +153,8 @@ class DynamicOperators():
             raise Exception("Error tracking fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
+        max_retry_attempts = 5
+
         self.reset_state()
 
         logbook = tools.Logbook()
@@ -186,7 +188,17 @@ class DynamicOperators():
             offspring = self.toolbox.select(self.pop, len(self.pop))
 
             # Vary the pool of individuals
-            offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+            n_attempts = 0
+            while n_attempts < max_retry_attempts:
+                #Attempt to create offspring - redesigning genetic operators if needed
+                try:
+                    offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+                    n_attempts = 0
+                    break
+                except Exception as e:
+                    self.mutator.redesign_mutation(self.client)
+                    n_attempts += 1
+                    #TODO: Redesign crossover operator as well
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
