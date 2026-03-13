@@ -45,5 +45,5 @@ type_ = individual[index].ret
 individual[slice_] = expr(pset=pset, type_=type_)
 return individual,
         
-Return raw Python code only as text, do not wrap it in markdown code blocks or backticks. 
-After generating the function, print a brief comment for each line explaining its purpose. Confirm that the variable names are consistent.
+Output ONLY valid Python code.
+Do not include explanations, comments, markdown, or analysis.

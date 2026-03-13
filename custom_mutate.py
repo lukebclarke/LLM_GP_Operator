@@ -175,14 +175,15 @@ class CustomMutate():
         while True:
             #TODO: Pass model to function so we can use same model for mutation and crossover
             response = llm_client.chat.completions.create(
-                model="MiniMaxAI/MiniMax-M2.5",
+                model="Qwen/Qwen3-Coder-Next-FP8",
                 temperature=0.95,
                 messages=[
+                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
                 {
                     "role": "user",
                     "content": self.llm_prompt
                 }
-                ]
+                ],
             )
                 
             code = response.choices[0].message.content

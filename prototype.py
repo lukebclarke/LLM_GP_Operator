@@ -95,6 +95,7 @@ def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, m
     ax.plot(xdata2, ydata2, label=alg2_label) 
     ax.set_xlabel("Generations")
     ax.set_ylabel(metric_name)
+    ax.legend()
     ax.grid('on')
 
     plt.show()
