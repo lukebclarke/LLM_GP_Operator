@@ -166,12 +166,6 @@ class AdaptiveOperator():
 
                 self.operator_design_validated = True
 
-                print(f"REMOTE OFFSPRING GENERATION for NUM_PARENTS = {self.num_parents}")
-                print(offspring[0])
-                print(type(offspring[0][0]))
-                print(type(offspring[0]))
-
-
                 return offspring
             
             #TODO: Better error handling
@@ -231,17 +225,10 @@ class AdaptiveOperator():
 
                 #Ensure correct types
                 for i in range(len(offspring)):
-                    print("CORRECTING OFFSPRING:")
-                    print(offspring[i])
                     if not isinstance(offspring[i], creator.Individual):
                         offspring[i] = creator.Individual(offspring[i])
 
-                print(f"LOCAL OFFSPRING GENERATION for NUM_PARENTS = {self.num_parents}")
-                print(offspring[i])
-                print(type(offspring[i][0]))
-                print(type(offspring[i]))
-
-
+                #TODO: Reset num_retries at end of generation
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
 
