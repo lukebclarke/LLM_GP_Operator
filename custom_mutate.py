@@ -14,7 +14,7 @@ import pickle
 from util import clean_llm_output
 from util import pickle_object
 from util import unpickle_daytona_file
-from util import load_mutation_module
+from util import load_module
 
 import textwrap 
 import os
@@ -140,7 +140,7 @@ class CustomMutate():
         if self.current_mutation_module == None:
             with open("temp/mutation_design.py", "w") as f:
                 f.write(self.current_mutation)
-            self.current_mutation_module = load_mutation_module("llm_mutate", "temp/mutation_design.py")
+            self.current_mutation_module = load_module("llm_mutate", "temp/mutation_design.py")
 
         #Attempt to mutate locally
         if self.current_mutation_module != None:

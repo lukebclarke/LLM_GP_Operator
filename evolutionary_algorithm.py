@@ -29,7 +29,10 @@ from dotenv import load_dotenv
 
 #Files
 from custom_mutate import CustomMutate
+from custom_crossover import CustomCrossover
 
+
+#TODO: Define max num retires in here
 class DynamicOperators():
     def __init__(self, n, pset, k=2):
         self.n = n
@@ -50,16 +53,22 @@ class DynamicOperators():
         self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
         
         # Defines genetic operators
-        self.client = self.setupLLM("docs/LLMPromptMutation.txt") #Custom operators require LLM input
+        self.client = self.setupLLM() #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
         self.toolbox.register("evaluate", self.evaluateIndividual, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
         self.toolbox.register("select", tools.selTournament, tournsize=3)
-        self.toolbox.register("mate", gp.cxOnePoint)
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
+        #Defines custom mutation + crossover interfaces
         self.mutator = CustomMutate(self.client, self.pset, self.toolbox)
-        self.toolbox.register("mutate", self.mutator.mutate, llm_client=self.client, sandbox=self.sandbox) #Uses custom mutation function
+        self.custom_crossover = CustomCrossover(self.client, self.pset, self.toolbox)
+
+        #Registers custom mutation + crossover methods
+        self.toolbox.register("mate", self.custom_crossover.crossover, llm_client=self.client, sandbox=self.sandbox)
+        self.toolbox.register("mutate", self.mutator.mutate, llm_client=self.client, sandbox=self.sandbox) 
+
+        #Defines limits for genetic operations
         self.toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
         self.toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
@@ -81,13 +90,15 @@ class DynamicOperators():
         self.prev_avg_fitness = 100000
 
     def reset_state(self):
-        self.pop = self.toolbox.population(n=300)
+        #Used for when algorithms are run multiple times
+        self.pop = self.toolbox.population(n=self.n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
         self.gens_since_improvement = 0
         self.prev_avg_fitness = 100000
         self.mutator.reset_mutator()
+        self.custom_crossover.reset_crossover()
 
-    def setupLLM(self, mutation_prompt_file):
+    def setupLLM(self):
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
 
@@ -149,6 +160,7 @@ class DynamicOperators():
         #There has not been an improvement in k generations
         elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement >= self.k:
             self.mutator.redesign_mutation(self.client)
+            self.custom_crossover.redesign_crossover(self.client)
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -196,9 +208,11 @@ class DynamicOperators():
                     n_attempts = 0
                     break
                 except Exception as e:
+                    #TODO: Get rid of this try except block - all errors should be captured earlier
                     self.mutator.redesign_mutation(self.client)
+                    self.custom_crossover.redesign_crossover(self.client)
+                    print("Redesigning mutator + crossover - fatal error")
                     n_attempts += 1
-                    #TODO: Redesign crossover operator as well
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -230,6 +244,7 @@ class DynamicOperators():
 
             # Updates LLM prompt with updated logbook
             self.mutator.update_llm_prompt(history)
+            self.custom_crossover.update_llm_prompt(history)
 
             #Solution found - early stopping
             if record["fitness"]["min"] < 0.00001:

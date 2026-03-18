@@ -68,7 +68,7 @@ def list_to_tree(nodes, pset):
     except:
         raise Exception("Invalid Tree - may be using invalid operators")
     
-def load_mutation_module(module_name, filepath):
+def load_module(module_name, filepath):
     #Delete previous module
     if module_name in sys.modules:
         del sys.modules[module_name]
