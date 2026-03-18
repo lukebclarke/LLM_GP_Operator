@@ -223,9 +223,11 @@ class AdaptiveOperator():
             try:
                 offspring = self.apply_operator(individuals)
 
-                #Ensure type individual
+                #Ensure correct types
                 for i in range(len(offspring)):
-                    if not isinstance(i, creator.Individual):
+                    if (not isinstance(offspring[i], gp.PrimitiveTree)) and (isinstance(offspring[i], creator.Individual)):
+                        offspring[i] = gp.PrimitiveTree(list(offspring[i]))
+                    if not isinstance(offspring[i], creator.Individual):
                         offspring[i] = creator.Individual(offspring[i])
 
                 #Only once the module has been operated locally, do we accept the design

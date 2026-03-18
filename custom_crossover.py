@@ -33,7 +33,7 @@ class CustomCrossover(AdaptiveOperator):
 
     def apply_operator(self, individuals):
         offspring = self.current_operator_module.crossover_individuals(individuals[0], individuals[1], self.pset)
-        return offspring
+        return [offspring[0], offspring[1]]
 
     def crossover(self, individual1, individual2):
         #By default, use one point crossover
