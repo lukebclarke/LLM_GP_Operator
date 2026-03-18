@@ -86,6 +86,8 @@ class AdaptiveOperator():
         code = ""
         #Keeps generating until correct format is produced
         while self.num_retries <= self.max_num_retries:
+            self.num_retries += 1
+
             response = self.llm_client.chat.completions.create(
                 model=self.llm_model,
                 temperature=0.80,
@@ -103,8 +105,6 @@ class AdaptiveOperator():
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
                 break
-
-            self.num_retries += 1
 
         if self.num_retries > self.max_num_retries:
             raise MaximumNumberRetries(self.num_parents)
@@ -166,6 +166,12 @@ class AdaptiveOperator():
 
                 self.operator_design_validated = True
 
+                print(f"REMOTE OFFSPRING GENERATION for NUM_PARENTS = {self.num_parents}")
+                print(offspring[0])
+                print(type(offspring[0][0]))
+                print(type(offspring[0]))
+
+
                 return offspring
             
             #TODO: Better error handling
@@ -180,7 +186,7 @@ class AdaptiveOperator():
 
             except Exception as e:
                 error = self.sandbox.fs.download_file("error.txt")
-                print("Error occured:")
+                print("Remote error occured:")
                 print(error.decode("utf-8")) #Prints error log
 
                 #If an error occurs, attempt to redesign the LLM function
@@ -225,13 +231,18 @@ class AdaptiveOperator():
 
                 #Ensure correct types
                 for i in range(len(offspring)):
-                    if (not isinstance(offspring[i], gp.PrimitiveTree)) and (isinstance(offspring[i], creator.Individual)):
-                        offspring[i] = gp.PrimitiveTree(list(offspring[i]))
+                    print("CORRECTING OFFSPRING:")
+                    print(offspring[i])
                     if not isinstance(offspring[i], creator.Individual):
                         offspring[i] = creator.Individual(offspring[i])
 
+                print(f"LOCAL OFFSPRING GENERATION for NUM_PARENTS = {self.num_parents}")
+                print(offspring[i])
+                print(type(offspring[i][0]))
+                print(type(offspring[i]))
+
+
                 #Only once the module has been operated locally, do we accept the design
-                print("Design accepted - resetting retries")
                 self.num_retries = 0
 
                 return offspring

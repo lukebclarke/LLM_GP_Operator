@@ -159,6 +159,7 @@ class DynamicOperators():
             self.gens_since_improvement += 1
         #There has not been an improvement in k generations
         elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement >= self.k:
+            print("Stagnating.... Redesigning...")
             self.mutator.redesign_operator()
             self.custom_crossover.redesign_operator()
         else:

@@ -35,7 +35,7 @@ INSERT_METHOD_DEFINITION_HERE
 
     #Save result
     with open("offspring0.pkl", "wb") as f:
-        pickle.dump(result, f)
+        pickle.dump(result[0], f)
 
 except Exception as e:
     import traceback
