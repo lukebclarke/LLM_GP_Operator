@@ -144,6 +144,9 @@ class AdaptiveOperator():
         
         #Attempts to execute - redesigns operator if fails
         while self.num_retries < self.max_num_retries: 
+            print("=== daytona_wrapper loaded ===")
+            print(repr(self.daytona_wrapper))  # shows exact contents, including if empty
+
             #Inserts LLM-generated function into full operator code
             operator_code = textwrap.indent(self.operator_design, "    ")
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
@@ -174,7 +177,7 @@ class AdaptiveOperator():
                 print("Text:", e.text)
 
                 #If an error occurs, attempt to redesign the LLM function
-                self.redesign_operator(self.llm_client)
+                self.redesign_operator()
 
             except Exception as e:
                 error = self.sandbox.fs.download_file("error.txt")
@@ -182,7 +185,7 @@ class AdaptiveOperator():
                 print(error.decode("utf-8")) #Prints error log
 
                 #If an error occurs, attempt to redesign the LLM function
-                self.redesign_operator(self.llm_client)
+                self.redesign_operator()
 
         raise MaximumNumberRetries(self.num_parents)
     
@@ -231,7 +234,7 @@ class AdaptiveOperator():
             #Redesign if code is unable to execute locally
             except Exception as e:
                 #Get new individuals (TODO)
-                print("Can't execute operator locally..")
+                print(f"Can't execute operator (num_parents: {self.num_parents} locally..")
                 print(e)
                 self.redesign_operator()
 

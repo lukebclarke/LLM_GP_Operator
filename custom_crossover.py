@@ -21,7 +21,7 @@ class CustomCrossover(AdaptiveOperator):
 
         #Wrapper for code
         with open("docs/crossover_wrapper.txt", "r") as f:
-            self.operator_design = f.read()
+            self.daytona_wrapper = f.read()
 
         #Gets LLM Prompt from file
         with open("docs/LLMPromptCrossover.txt", "r") as f:

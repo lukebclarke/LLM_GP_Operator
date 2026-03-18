@@ -21,7 +21,7 @@ class CustomMutate(AdaptiveOperator):
 
         #Wrapper for code
         with open("docs/mutation_wrapper.txt", "r") as f:
-            self.mutation_wrapper = f.read()
+            self.daytona_wrapper = f.read()
 
         #Gets LLM Prompt from file
         with open("docs/LLMPromptMutation.txt", "r") as f:
