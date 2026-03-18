@@ -61,12 +61,12 @@ class DynamicOperators():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutate(self.client, self.pset, self.toolbox)
-        self.custom_crossover = CustomCrossover(self.client, self.pset, self.toolbox)
+        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5)
 
         #Registers custom mutation + crossover methods
-        self.toolbox.register("mate", self.custom_crossover.crossover, llm_client=self.client, sandbox=self.sandbox)
-        self.toolbox.register("mutate", self.mutator.mutate, llm_client=self.client, sandbox=self.sandbox) 
+        self.toolbox.register("mate", self.custom_crossover.crossover)
+        self.toolbox.register("mutate", self.mutator.mutate) 
 
         #Defines limits for genetic operations
         self.toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
@@ -95,8 +95,8 @@ class DynamicOperators():
         self.hof = tools.HallOfFame(1) #We track 1 best solution
         self.gens_since_improvement = 0
         self.prev_avg_fitness = 100000
-        self.mutator.reset_mutator()
-        self.custom_crossover.reset_crossover()
+        self.mutator.reset_operator()
+        self.custom_crossover.reset_operator()
 
     def setupLLM(self):
         #Defines LLM Client for custom genetic operators
@@ -159,8 +159,8 @@ class DynamicOperators():
             self.gens_since_improvement += 1
         #There has not been an improvement in k generations
         elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement >= self.k:
-            self.mutator.redesign_mutation(self.client)
-            self.custom_crossover.redesign_crossover(self.client)
+            self.mutator.redesign_operator()
+            self.custom_crossover.redesign_operator()
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -203,16 +203,17 @@ class DynamicOperators():
             n_attempts = 0
             while n_attempts < max_retry_attempts:
                 #Attempt to create offspring - redesigning genetic operators if needed
-                try:
-                    offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
-                    n_attempts = 0
-                    break
-                except Exception as e:
-                    #TODO: Get rid of this try except block - all errors should be captured earlier
-                    self.mutator.redesign_mutation(self.client)
-                    self.custom_crossover.redesign_crossover(self.client)
-                    print("Redesigning mutator + crossover - fatal error")
-                    n_attempts += 1
+                # try:
+                offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+                n_attempts = 0
+                # break
+                # except Exception as e:
+                #     #TODO: Get rid of this try except block - all errors should be captured earlier
+                #     self.mutator.redesign_operator()
+                #     self.custom_crossover.redesign_operator()
+                #     print("Redesigning mutator + crossover - fatal error")
+                #     print(e)
+                #     n_attempts += 1
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]

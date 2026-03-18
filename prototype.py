@@ -115,7 +115,7 @@ pset.renameArguments(ARG0='x') #Renames input variable to x
 def main():
     #Run GP - Simple Evolutionary Algorithm
     algorithm = DynamicOperators(n=300, pset=pset, k=5)
-    num_runs = 10
+    num_runs = 3
 
     #Statistics
     all_fit_avg_ea = []

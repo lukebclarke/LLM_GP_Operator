@@ -7,30 +7,17 @@ from deap import gp
 from daytona import Daytona
 from daytona import CodeRunParams
 
-import json
-import random
-import pickle
-
-from util import clean_llm_output
-from util import pickle_object
-from util import unpickle_daytona_file
-from util import load_module
-
 import textwrap 
 import os
 import sys
 import inspect
 
-class CustomMutate():
-    def __init__(self, client, pset, toolbox, max_num_retries=5):
-        self.client = client
-        self.pset = pset
-        self.toolbox = toolbox
+from adaptive_operator import AdaptiveOperator
 
-        self.current_mutation = None #TODO: Track the design we are currently using, and mutate according to this design
-        self.current_mutation_module = None
-        self.design_validated = False
-        self.max_num_retries = max_num_retries #Number of times to retry generating LLM response 
+class CustomMutate(AdaptiveOperator):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5):
+        #Mutation operators have 2 parents and 2 offspring
+        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, model=model)
 
         #Wrapper for code
         with open("docs/mutation_wrapper.txt", "r") as f:
@@ -44,169 +31,21 @@ class CustomMutate():
         #Enables us to import mutation design stored in temp folder 
         sys.path.append('/temp')
     
-    #TODO: Define custom exception classes, and add to doc strings
+    def apply_operator(self, individuals):
+        offspring = self.current_operator_module.mutate_individual(individuals, self.pset)
+        return offspring
 
-    def reset_mutator(self):
-        self.current_mutation = None 
-        self.current_mutation_module = None
-        self.design_validated = False
-        self.llm_prompt = None
-
-    def llm_custom_mutate_daytona(self, individual, llm_client, sandbox):
-        """Used to execute LLM-generated code using the Daytona sandbox. Verifies that the code is able to execute successfully, and that it is trusted.
-
-        Args:
-            individual (gp.Individual): The individual to mutate
-            llm_client (Together): The LLM client used to redesign the mutation
-            sandbox (Daytona): The Daytona sandbox used to execute the LLM-generated mutation design
-
-        Raises:
-            Exception: TODO
-
-        Returns:
-            gp.Individual: The mutated individual
-        """
-
-        #Pickles objects - enables transfer to sandbox environment
-        pickle_object(individual, "individual")
-        pickle_object(self.pset, "pset")
-
-        #Uploads files to sandbox
-        with open("temp/individual.pkl", "rb") as f:
-            content = f.read()
-            sandbox.fs.upload_file(content, "individual.pkl")
-            
-
-        with open("temp/pset.pkl", "rb") as f:
-            content = f.read()
-            sandbox.fs.upload_file(content, "pset.pkl")
-        
-        #Attempts to execute - redesigns mutation if fails
-        for i in range(self.max_num_retries): 
-            #Inserts LLM-generated function into full mutation code
-            mutation_code = textwrap.indent(self.current_mutation, "    ")
-            wrapper_text = self.mutation_wrapper.replace("INSERT_CURRENT_MUTATION_HERE", mutation_code)
-
-            try:
-                compile(wrapper_text, "<sandbox>", "exec")
-            
-                #Execute the code in the sandbox
-                response = sandbox.process.code_run(wrapper_text)
-
-                #TODO: Add a timeout - give it 30 seconds to produce code
-
-                #Must convert the pickled object back to desired form
-                output = unpickle_daytona_file("result", sandbox)
-
-                self.design_validated = True
-
-                return output
-            
-            except SyntaxError as e:
-                print("Generated code has a syntax error:")
-                print(e)
-                print("Line:", e.lineno)
-                print("Text:", e.text)
-
-                #If an error occurs, attempt to redesign the LLM function
-                self.redesign_mutation(llm_client)
-
-            except Exception as e:
-                error = sandbox.fs.download_file("error.txt")
-                print("Error occured:")
-                print(error.decode("utf-8")) #Prints error log
-
-                #If an error occurs, attempt to redesign the LLM function
-                self.redesign_mutation(llm_client)
-
-        raise Exception("Too many attempts to generate code - redesign the LLM prompt")
-    
-    def llm_custom_mutate_locally(self, individual, llm_client):
-        """Used to execute LLM-generated code locally. Used for trusted code.
-
-        Args:
-            individual (gp.Individual): The individual to mutate
-            llm_client (Together): The LLM client used to redesign the mutation
-
-        Raises:
-            Exception: TODO
-
-        Returns:
-            gp.Individual: The mutated individual
-        """
-        #TODO: Wrap in try except - redesign if crashes
-
-        #Ensure that the Python design is saved locally
-        if self.current_mutation_module == None:
-            with open("temp/mutation_design.py", "w") as f:
-                f.write(self.current_mutation)
-            self.current_mutation_module = load_module("llm_mutate", "temp/mutation_design.py")
-
-        #Attempt to mutate locally
-        if self.current_mutation_module != None:
-            try:
-                ind = self.current_mutation_module.mutate_individual(individual, self.pset)
-
-                #Ensure type individual
-                if not isinstance(ind[0], creator.Individual):
-                    ind[0] = creator.Individual(ind[0])
-
-                return ind
-            
-            #Redesign if code is unable to execute locally
-            except Exception as e:
-                ind = (individual,)
-                #For now, just skip mutation
-                return ind
-            
-                #TODO: Redesign mutation?
-        else:
-            raise Exception("No module loaded for custom mutation") #TODO: Sort out error handling
-
-    def update_llm_prompt(self, history):
-        #LLMs can deal with JSON
-        formatted_history = json.dumps(history, indent=2)
-        self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
-
-    def redesign_mutation(self, llm_client):
-        #TODO: Create a counter of how many time it retries
-        code = ""
-        #Keeps generating until correct format is produced
-        while True:
-            #TODO: Pass model to function so we can use same model for mutation and crossover
-            response = llm_client.chat.completions.create(
-                model="Qwen/Qwen3-Coder-Next-FP8",
-                temperature=0.95,
-                messages=[
-                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
-                {
-                    "role": "user",
-                    "content": self.llm_prompt
-                }
-                ],
-            )
-                
-            code = response.choices[0].message.content
-
-            #Must contain the function
-            if "def mutate_individual(" in code:
-                break
-
-        #Saves the resulting function - can be reaccessed
-        self.current_mutation = clean_llm_output(code)
-        self.design_validated = False #TODO: Merge these variables
-        self.current_mutation_module = None
-
-    def mutate(self, individual, llm_client, sandbox):
+    def mutate(self, individual):
         #By default, use uniform mutation
-        if self.current_mutation == None:
+        if self.operator_design == None:
             ind = gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
             return ind
         #Validates the design by using Daytona to execute the code
-        elif self.current_mutation != None and self.design_validated == False:
-            return self.llm_custom_mutate_daytona(individual, llm_client, sandbox)
+        elif self.operator_design != None and self.operator_design_validated == False:
+            offspring = self.llm_custom_operator_daytona([individual])
+            return offspring[0]
         #If the design has already been validated, can execute locally
-        elif self.current_mutation != None and self.design_validated == True:
+        elif self.operator_design != None and self.operator_design_validated == True:
             #Ensure design is saved locally
-            return self.llm_custom_mutate_locally(individual, llm_client)
-
+            offspring = self.llm_custom_operator_locally([individual])
+            return offspring[0]

@@ -2,7 +2,7 @@ with open("error.txt", "w") as f:
     f.write("Mutation execution started...\n")
 
 try: 
-INSERT_CURRENT_MUTATION_HERE
+INSERT_METHOD_DEFINITION_HERE
 
     import os
     import pickle
