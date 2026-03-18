@@ -155,10 +155,10 @@ class DynamicOperators():
             self.prev_avg_fitness = current_fitness
             self.gens_since_improvement = 0
         #There has not been an improvement, but less than k generations have surpassed
-        elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement < self.k:
+        elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement < self.k:
             self.gens_since_improvement += 1
         #There has not been an improvement in k generations
-        elif current_fitness > self.prev_avg_fitness and self.gens_since_improvement >= self.k:
+        elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement >= self.k:
             self.mutator.redesign_mutation(self.client)
             self.custom_crossover.redesign_crossover(self.client)
         else:
