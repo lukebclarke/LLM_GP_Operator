@@ -48,7 +48,6 @@ def clean_llm_output(output):
     if "mutuated_individual" in output:
         generated_code = generated_code.replace("mutuated_individual", "mutated_individual")
 
-    
     return output
 
 def tree_to_list(tree):

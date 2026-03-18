@@ -23,7 +23,7 @@ INSERT_METHOD_DEFINITION_HERE
     with open("pset.pkl", "rb") as f:
         pset = pickle.load(f)
     
-    with open("individual.pkl", "rb") as f:
+    with open("individual0.pkl", "rb") as f:
         individual = pickle.load(f)
     
     #Run mutation
@@ -34,7 +34,7 @@ INSERT_METHOD_DEFINITION_HERE
         result[0] = creator.Individual(result[0])
 
     #Save result
-    with open("result.pkl", "wb") as f:
+    with open("offspring0.pkl", "wb") as f:
         pickle.dump(result, f)
 
 except Exception as e:

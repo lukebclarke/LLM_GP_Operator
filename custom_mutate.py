@@ -32,7 +32,7 @@ class CustomMutate(AdaptiveOperator):
         sys.path.append('/temp')
     
     def apply_operator(self, individuals):
-        offspring = self.current_operator_module.mutate_individual(individuals, self.pset)
+        offspring = self.current_operator_module.mutate_individual(individuals[0], self.pset)
         return offspring
 
     def mutate(self, individual):

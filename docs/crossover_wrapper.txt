@@ -23,10 +23,10 @@ INSERT_METHOD_DEFINITION_HERE
     with open("pset.pkl", "rb") as f:
         pset = pickle.load(f)
     
-    with open("individual1.pkl", "rb") as f:
+    with open("individual0.pkl", "rb") as f:
         individual1 = pickle.load(f)
 
-    with open("individual2.pkl", "rb") as f:
+    with open("individual1.pkl", "rb") as f:
         individual2 = pickle.load(f)
     
     #Run crossover
@@ -39,9 +39,9 @@ INSERT_METHOD_DEFINITION_HERE
         offspring2 = creator.Individual(offspring2)
 
     #Save result
-    with open("offspring1.pkl", "wb") as f:
+    with open("offspring0.pkl", "wb") as f:
         pickle.dump(offspring1, f)
-    with open("offspring2.pkl", "wb") as f:
+    with open("offspring1.pkl", "wb") as f:
         pickle.dump(offspring2, f)
 
 

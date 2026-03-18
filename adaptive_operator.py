@@ -85,8 +85,7 @@ class AdaptiveOperator():
         #TODO: Create a counter of how many time it retries
         code = ""
         #Keeps generating until correct format is produced
-        while True:
-            #TODO: Pass model to function so we can use same model for mutation and crossover
+        while self.num_retries <= self.max_num_retries:
             response = self.llm_client.chat.completions.create(
                 model=self.llm_model,
                 temperature=0.80,
@@ -106,6 +105,9 @@ class AdaptiveOperator():
                 break
 
             self.num_retries += 1
+
+        if self.num_retries > self.max_num_retries:
+            raise MaximumNumberRetries(self.num_parents)
 
         #Saves the resulting function - can be reaccessed
         self.operator_design = clean_llm_output(code)
@@ -144,9 +146,7 @@ class AdaptiveOperator():
         
         #Attempts to execute - redesigns operator if fails
         while self.num_retries < self.max_num_retries: 
-            print("=== daytona_wrapper loaded ===")
-            print(repr(self.daytona_wrapper))  # shows exact contents, including if empty
-
+            print(f"Num retries: {self.num_retries}")
             #Inserts LLM-generated function into full operator code
             operator_code = textwrap.indent(self.operator_design, "    ")
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
@@ -164,8 +164,7 @@ class AdaptiveOperator():
                 for i in range(self.num_offspring):
                     offspring.append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
 
-                self.design_validated = True
-                self.num_retries = 0
+                self.operator_design_validated = True
 
                 return offspring
             
@@ -229,12 +228,16 @@ class AdaptiveOperator():
                     if not isinstance(i, creator.Individual):
                         offspring[i] = creator.Individual(offspring[i])
 
+                #Only once the module has been operated locally, do we accept the design
+                print("Design accepted - resetting retries")
+                self.num_retries = 0
+
                 return offspring
             
             #Redesign if code is unable to execute locally
             except Exception as e:
                 #Get new individuals (TODO)
-                print(f"Can't execute operator (num_parents: {self.num_parents} locally..")
+                print(f"Can't execute operator (num_parents: {self.num_parents}) locally..")
                 print(e)
                 self.redesign_operator()
 

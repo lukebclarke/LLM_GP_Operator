@@ -32,7 +32,7 @@ class CustomCrossover(AdaptiveOperator):
         sys.path.append('/temp')
 
     def apply_operator(self, individuals):
-        offspring = self.current_operator_module.crossover_individuals(individuals, self.pset)
+        offspring = self.current_operator_module.crossover_individuals(individuals[0], individuals[1], self.pset)
         return offspring
 
     def crossover(self, individual1, individual2):
