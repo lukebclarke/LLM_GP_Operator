@@ -32,6 +32,12 @@ INSERT_METHOD_DEFINITION_HERE
     #Run crossover
     offspring1, offspring2 = crossover_individuals(individual1, individual2, pset)
 
+    #Unwraps list
+    if isinstance(offspring1, (list, tuple)) and len(offspring1) == 1:
+        offspring1 = offspring1[0]
+    if isinstance(offspring2, (list, tuple)) and len(offspring2) == 1:
+        offspring1 = offspring1[0]
+
     #Converts offspring to type Individual (if not already)
     if not isinstance(offspring1, creator.Individual):
         offspring1 = creator.Individual(offspring1)

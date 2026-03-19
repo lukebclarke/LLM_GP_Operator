@@ -33,32 +33,29 @@ class CustomMutate(AdaptiveOperator):
     
     def apply_operator(self, individuals):
         offspring = self.current_operator_module.mutate_individual(individuals[0], self.pset)
-        print("ORIGINAL OFFSPRING")
-        print(offspring)
-        print(type(offspring))
-
-        print("Applying mutation locally")
-        if isinstance(offspring, tuple):
-            offspring = offspring[0]
-
-        print("UPDATED OFFSPRING")
-        print(offspring)
-        print(type(offspring))
-        print(type(offspring[0]))
-
         return [offspring]
 
     def mutate(self, individual):
+
+        print(f"CURRENT MUT TYPE: {type(individual)}")
+        print(f"CURRENT MUT: {individual}")
+
         #By default, use uniform mutation
         if self.operator_design == None:
             ind = gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
+            print(f"OFFSPRING MUT TYPE: {type(ind)}")
+            print(f"OFFSPRING MUT: {ind}")
             return ind
         #Validates the design by using Daytona to execute the code
         elif self.operator_design != None and self.operator_design_validated == False:
-            offspring = self.llm_custom_operator_daytona([individual])
-            return offspring[0],
+            offspring = self.llm_custom_operator_daytona([individual])[0],
+            print(f"OFFSPRING MUT TYPE: {type(offspring)}")
+            print(f"OFFSPRING MUT: {offspring}")
+            return offspring
         #If the design has already been validated, can execute locally
         elif self.operator_design != None and self.operator_design_validated == True:
             #Ensure design is saved locally
-            offspring = self.llm_custom_operator_locally([individual])
-            return offspring[0],
+            offspring = self.llm_custom_operator_locally([individual])[0],
+            print(f"OFFSPRING MUT TYPE: {type(offspring)}")
+            print(f"OFFSPRING MUT: {offspring}")
+            return offspring

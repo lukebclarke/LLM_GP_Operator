@@ -61,8 +61,8 @@ class DynamicOperators():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5)
+        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
@@ -111,7 +111,6 @@ class DynamicOperators():
         return client
     
     def setupDaytona(self):
-        #TODO: Timeout after certain amount of time, and retry creating client
         daytonaClient = Daytona()
         sandbox = daytonaClient.create()
         

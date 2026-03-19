@@ -81,6 +81,17 @@ class AdaptiveOperator():
         formatted_history = json.dumps(history, indent=2)
         self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
 
+    def clean_individual(self, individual):
+        #Unwraps child
+        if isinstance(individual, (list, tuple)) and len(individual) == 1:
+            individual = individual[0]
+
+        #Converts to individual
+        if not isinstance(individual, creator.Individual):
+            individual = creator.Individual(individual)
+
+        return individual
+
     def redesign_operator(self):
         #TODO: Create a counter of how many time it retries
         code = ""
@@ -225,8 +236,7 @@ class AdaptiveOperator():
 
                 #Ensure correct types
                 for i in range(len(offspring)):
-                    if not isinstance(offspring[i], creator.Individual):
-                        offspring[i] = creator.Individual(offspring[i])
+                    offspring[i] = self.clean_individual(offspring[i])
 
                 #TODO: Reset num_retries at end of generation
                 #Only once the module has been operated locally, do we accept the design

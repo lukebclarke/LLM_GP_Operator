@@ -48,7 +48,7 @@ def plot_graph(metric_name, metric_values):
 
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
-    ax.plot(xdata, ydata)  # <-- Plot the data
+    ax.plot(xdata, ydata)  
     ax.set_xlabel("Generations")
     ax.set_ylabel(metric_name)
     ax.grid('on')
