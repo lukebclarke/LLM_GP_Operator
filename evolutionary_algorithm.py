@@ -2,6 +2,7 @@ import operator
 import math
 import random
 import os
+import numpy as np
 
 import numpy
 
@@ -22,6 +23,7 @@ from google.genai import types
 from together import Together
 from daytona import Daytona
 import subprocess
+
 
 
 #API Keys
@@ -84,15 +86,17 @@ class DynamicOperators():
         self.mstats.register("std", numpy.std)
         self.mstats.register("min", numpy.min)
         self.mstats.register("max", numpy.max)
+        self.fitness_improvements = []
 
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
         self.gens_since_improvement = 0
-        self.prev_avg_fitness = 100000
+        self.prev_avg_fitness = np.inf
 
     def reset_state(self):
         #Used for when algorithms are run multiple times
         self.pop = self.toolbox.population(n=self.n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
+        self.fitness_improvements = []
         self.gens_since_improvement = 0
         self.prev_avg_fitness = 100000
         self.mutator.reset_operator()
@@ -142,6 +146,10 @@ class DynamicOperators():
         stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
         stats["mutation_redesigns"] = self.mutator.total_num_redesigns
 
+        #Adds extra generation at start with no value
+        self.fitness_improvements.insert(0, np.nan)
+        stats["fitness_improvements"] = self.fitness_improvements
+
         return stats
 
     def runSimpleEA(self):
@@ -156,6 +164,8 @@ class DynamicOperators():
     def check_stagnation(self, current_fitness):
         #There has been an improvement
         self.gens_since_improvement += 1
+        if self.prev_avg_fitness != np.inf:
+            self.fitness_improvements.append(self.prev_avg_fitness - current_fitness)
 
         if current_fitness < self.prev_avg_fitness:
             self.prev_avg_fitness = current_fitness
