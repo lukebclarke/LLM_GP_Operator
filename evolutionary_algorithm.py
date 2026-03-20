@@ -87,6 +87,7 @@ class DynamicOperators():
         self.mstats.register("min", numpy.min)
         self.mstats.register("max", numpy.max)
         self.fitness_improvements = []
+        self.redesign_generations = []
 
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
         self.gens_since_improvement = 0
@@ -150,6 +151,9 @@ class DynamicOperators():
         self.fitness_improvements.insert(0, np.nan)
         stats["fitness_improvements"] = self.fitness_improvements
 
+        #Tracks which generations we redesign the operators on
+        stats["redesign_generations"] = self.redesign_generations
+
         return stats
 
     def runSimpleEA(self):
@@ -161,9 +165,11 @@ class DynamicOperators():
         
         return pop, log, self.hof
         
-    def check_stagnation(self, current_fitness):
+    def check_stagnation(self, current_fitness, gen_num):
         #There has been an improvement
         self.gens_since_improvement += 1
+
+        #Updates statistics
         if self.prev_avg_fitness != np.inf:
             self.fitness_improvements.append(self.prev_avg_fitness - current_fitness)
 
@@ -178,6 +184,7 @@ class DynamicOperators():
             print("Stagnating.... Redesigning...")
             self.custom_crossover.redesign_operator()
             self.mutator.redesign_operator()
+            self.redesign_generations.append(gen_num)
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -258,7 +265,7 @@ class DynamicOperators():
             self.mutator.local_skips = 0
             self.custom_crossover.local_skips = 0
 
-            self.check_stagnation(avg_fitness)
+            self.check_stagnation(avg_fitness, gen)
 
         ao_stats = self.adaptive_operator_stats()
         return self.pop, logbook, self.hof, ao_stats
