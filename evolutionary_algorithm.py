@@ -148,7 +148,7 @@ class DynamicOperators():
         stats["mutation_redesigns"] = self.mutator.total_num_redesigns
 
         #Adds extra generation at start with no value
-        self.fitness_improvements.insert(0, np.nan)
+        self.fitness_improvements[0] = np.nan
         stats["fitness_improvements"] = self.fitness_improvements
 
         #Tracks which generations we redesign the operators on
@@ -170,8 +170,7 @@ class DynamicOperators():
         self.gens_since_improvement += 1
 
         #Updates statistics
-        if self.prev_avg_fitness != np.inf:
-            self.fitness_improvements.append(self.prev_avg_fitness - current_fitness)
+        self.fitness_improvements.append(self.prev_avg_fitness - current_fitness)
 
         if current_fitness < self.prev_avg_fitness:
             self.prev_avg_fitness = current_fitness

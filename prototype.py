@@ -81,6 +81,22 @@ def get_stats(all_fit_avg, all_size_avg, all_fit_min):
 
     return fit_avg_mean, size_avg_mean, fit_min_mean
 
+def plot_improvement_graph(metric_name, values, redesign_generations):
+    gens = list(range(0, len(values), 1))
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    ax.plot(gens, values) 
+    ax.set_xticks(range(0, len(gens), 5))
+    ax.set_xlabel("Generations")
+    ax.set_ylabel(metric_name)
+
+    #Adds references to redesign generations
+    for gen in redesign_generations:
+        ax.axvline(x=gen, linestyle='--')
+
+    plt.show()
+
 def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2):
     xdata1 = list(range(0, len(metric_values1), 1))
     ydata1 = metric_values1
@@ -114,7 +130,7 @@ pset.renameArguments(ARG0='x') #Renames input variable to x
 def main():
     #Run GP - Simple Evolutionary Algorithm
     algorithm = DynamicOperators(n=300, pset=pset, k=5)
-    num_runs = 3
+    num_runs = 1
 
     #Statistics
     all_fit_avg_ea = []
@@ -143,6 +159,12 @@ def main():
 
         mutation_redesigns.append(ao_stats["mutation_redesigns"])
         crossover_redesigns.append(ao_stats["crossover_redesigns"])
+
+        redesign_gens = ao_stats["redesign_generations"]
+        fitness_improvement_per_gen = ao_stats["fitness_improvements"]
+
+        plot_improvement_graph("Fitness Improvement per Generation", fitness_improvement_per_gen, redesign_gens)
+
 
     algorithm.shutdown_sandbox()
 
