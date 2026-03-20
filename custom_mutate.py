@@ -15,9 +15,9 @@ import inspect
 from adaptive_operator import AdaptiveOperator
 
 class CustomMutate(AdaptiveOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=5):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
         #Mutation operators have 2 parents and 2 offspring
-        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, model=model)
+        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
 
         #Wrapper for code
         with open("docs/mutation_wrapper.txt", "r") as f:
@@ -53,7 +53,6 @@ class CustomMutate(AdaptiveOperator):
             return offspring[0],
         #If the design has already been validated at least 3 times, can execute locally
         elif self.operator_design != None and self.operator_design_validated == True:
-            print("Testing locally")
             #Ensure design is saved locally
             offspring = self.llm_custom_operator_locally([individual])[0],
 

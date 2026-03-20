@@ -200,13 +200,6 @@ class DynamicOperators():
             # Vary the pool of individuals
             #Attempt to create offspring - redesigning genetic operators if needed
             offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
-            # except Exception as e:
-            #     #TODO: Get rid of this try except block - all errors should be captured earlier
-            #     self.mutator.redesign_operator()
-            #     self.custom_crossover.redesign_operator()
-            #     print("Redesigning mutator + crossover - fatal error")
-            #     print(e)
-            #     n_attempts += 1
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]

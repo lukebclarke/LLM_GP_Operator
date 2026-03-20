@@ -91,6 +91,13 @@ class AdaptiveOperator():
         formatted_history = json.dumps(history, indent=2)
         self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
 
+    def validate_individual(self, individual):
+        try:
+            h = individual.height
+            return True
+        except:
+            return False
+
     def clean_individual(self, individual):
         #Unwraps tuple (if applicable)
         if isinstance(individual, tuple) and len(individual) == 1:
@@ -186,8 +193,10 @@ class AdaptiveOperator():
                 offspring = []
                 for i in range(self.num_offspring):
                     offspring.append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
-                    print("Cleaning...")
                     offspring[i] = self.clean_individual(offspring[i])
+
+                    if not self.validate_individual(offspring[i]):
+                        raise Exception("Invalid offspring generated")
 
                 self.operator_design_validated = True
 
@@ -269,6 +278,9 @@ class AdaptiveOperator():
                 # print("CLEANING....")
                 for i in range(len(offspring)):
                     offspring[i] = self.clean_individual(offspring[i])
+
+                    if not self.validate_individual(offspring[i]):
+                        raise Exception("Invalid offspring generated")
 
                 #TODO: Reset num_retries at end of generation
                 #Only once the module has been operated locally, do we accept the design
