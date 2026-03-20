@@ -58,6 +58,8 @@ class AdaptiveOperator():
         self.num_retries = 0
         self.local_skips = 0
 
+        self.total_num_redesigns = 0
+
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
     
@@ -70,6 +72,7 @@ class AdaptiveOperator():
         self.llm_prompt = None
         self.num_retries = 0
         self.local_skips = 0
+        self.total_num_redesigns = 0
 
     def remove_design(self):
         self.operator_design = None 
@@ -111,6 +114,7 @@ class AdaptiveOperator():
 
     def redesign_operator(self):
         self.remove_design()
+        self.total_num_redesigns += 1
 
         #TODO: Create a counter of how many time it retries
         code = ""

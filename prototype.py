@@ -125,9 +125,12 @@ def main():
     all_size_avg_ao = []
     all_fit_min_ao = []
 
+    mutation_redesigns = []
+    crossover_redesigns = []
+
     for i in range(num_runs):
         print("Run number: ", i)
-        pop_ao, log_ao, hof_ao = algorithm.runDynamicEA(verbose=True)
+        pop_ao, log_ao, hof_ao, ao_stats = algorithm.runDynamicEA(verbose=True)
         pop_ea, log_ea, hof_ea = algorithm.runSimpleEA()
 
         all_fit_avg_ea.append(log_ea.chapters["fitness"].select("avg"))
@@ -138,11 +141,20 @@ def main():
         all_size_avg_ao.append(log_ao.chapters["size"].select("avg"))
         all_fit_min_ao.append(log_ao.chapters["fitness"].select("min"))
 
+        mutation_redesigns.append(ao_stats["mutation_redesigns"])
+        crossover_redesigns.append(ao_stats["crossover_redesigns"])
+
     algorithm.shutdown_sandbox()
 
     #Gets statistics across all runs
     ea_fit_avg, ea_size_avg, ea_fit_min = get_stats(all_fit_avg_ea, all_size_avg_ea, all_fit_min_ea)
     ao_fit_avg, ao_size_avg, ao_fit_min = get_stats(all_fit_avg_ao, all_size_avg_ao, all_fit_min_ao)
+
+    #Redesign counts
+    avg_redesigns_mut = sum(mutation_redesigns) / num_runs
+    avg_redesigns_cx = sum(crossover_redesigns) / num_runs
+    print(f"Number of mutation redesigns: {avg_redesigns_mut}")
+    print(f"Number of crossover redesigns: {avg_redesigns_cx}")
 
     #Visualise best solution
     nodes, edges, labels = gp.graph(hof_ao[0])

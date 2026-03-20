@@ -137,6 +137,13 @@ class DynamicOperators():
         sqerrors = ((func(x) - x**4 - x**3 - x**2 - x)**2 for x in points)
         return math.fsum(sqerrors) / len(points),
 
+    def adaptive_operator_stats(self):
+        stats = {}
+        stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
+        stats["mutation_redesigns"] = self.mutator.total_num_redesigns
+
+        return stats
+
     def runSimpleEA(self):
         self.reset_state()
 
@@ -243,7 +250,8 @@ class DynamicOperators():
 
             self.check_stagnation(avg_fitness)
 
-        return self.pop, logbook, self.hof
+        ao_stats = self.adaptive_operator_stats()
+        return self.pop, logbook, self.hof, ao_stats
     
     def shutdown_sandbox(self):
         self.sandbox.delete()
