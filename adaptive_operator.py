@@ -111,18 +111,9 @@ class AdaptiveOperator():
             individual = creator.Individual(individual)
 
         return individual
-
-    def redesign_operator(self):
-        self.remove_design()
-        self.total_num_redesigns += 1
-
-        #TODO: Create a counter of how many time it retries
-        code = ""
-        #Keeps generating until correct format is produced
-        while self.num_retries <= self.max_num_retries:
-            self.num_retries += 1
-
-            response = self.llm_client.chat.completions.create(
+    
+    def llm_standard_model(self):
+        response = self.llm_client.chat.completions.create(
                 model=self.llm_model,
                 temperature=0.80,
                 messages=[
@@ -134,7 +125,43 @@ class AdaptiveOperator():
                 ],
             )
                 
-            code = response.choices[0].message.content
+        code = response.choices[0].message.content
+        
+        return code
+    
+    def llm_reasoning_model(self):
+        print("Doing...")
+        response = self.llm_client.chat.completions.create(
+                model="MiniMaxAI/MiniMax-M2.5",
+                temperature=0.80,
+                messages=[
+                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
+                {
+                    "role": "user",
+                    "content": self.llm_prompt
+                }
+                ],
+                stream=False,
+                max_tokens=2000,
+            )
+                
+        print("got response/timeout")
+        code = response.choices[0].message.content
+        
+        return code
+
+    def redesign_operator(self):
+        self.remove_design()
+        self.total_num_redesigns += 1
+
+        #TODO: Create a counter of how many time it retries
+        code = ""
+        #Keeps generating until correct format is produced
+        while self.num_retries <= self.max_num_retries:
+            self.num_retries += 1
+
+            code = self.llm_standard_model()
+            print(code)
 
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):

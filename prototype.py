@@ -87,6 +87,7 @@ def plot_improvement_graph(metric_name, values, redesign_generations):
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
     ax.plot(gens, values) 
+    ax.set_ylim(bottom=0)
     ax.set_xticks(range(0, len(gens), 5))
     ax.set_xlabel("Generations")
     ax.set_ylabel(metric_name)
