@@ -30,32 +30,31 @@ class CustomMutate(AdaptiveOperator):
 
         #Enables us to import mutation design stored in temp folder 
         sys.path.append('/temp')
-    
+
     def apply_operator(self, individuals):
-        offspring = self.current_operator_module.mutate_individual(individuals[0], self.pset)
-        return [offspring]
+        ind = individuals[0]
+        offspring = self.current_operator_module.mutate_individual(ind, self.pset)
+
+        #Ensures in correct format
+        if isinstance(offspring, tuple) and len(offspring)==1:
+            return [offspring[0]]
+        else:
+            return [offspring]
 
     def mutate(self, individual):
-
-        print(f"CURRENT MUT TYPE: {type(individual)}")
-        print(f"CURRENT MUT: {individual}")
-
         #By default, use uniform mutation
         if self.operator_design == None:
             ind = gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)
-            print(f"OFFSPRING MUT TYPE: {type(ind)}")
-            print(f"OFFSPRING MUT: {ind}")
             return ind
         #Validates the design by using Daytona to execute the code
         elif self.operator_design != None and self.operator_design_validated == False:
-            offspring = self.llm_custom_operator_daytona([individual])[0],
-            print(f"OFFSPRING MUT TYPE: {type(offspring)}")
-            print(f"OFFSPRING MUT: {offspring}")
-            return offspring
-        #If the design has already been validated, can execute locally
+            offspring = self.llm_custom_operator_daytona([individual])
+
+            return offspring[0],
+        #If the design has already been validated at least 3 times, can execute locally
         elif self.operator_design != None and self.operator_design_validated == True:
+            print("Testing locally")
             #Ensure design is saved locally
             offspring = self.llm_custom_operator_locally([individual])[0],
-            print(f"OFFSPRING MUT TYPE: {type(offspring)}")
-            print(f"OFFSPRING MUT: {offspring}")
-            return offspring
+
+            return offspring[0],

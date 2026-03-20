@@ -9,6 +9,8 @@ import importlib
 from daytona import Daytona
 import sys
 
+from daytona.common.errors import DaytonaNotFoundError
+
 def get_individual_from_string(individual_string, pset):
     individual = gp.PrimitiveTree.from_string(individual_string, pset)
 
@@ -30,12 +32,28 @@ def unpickle_object(file_name):
     return obj
 
 def unpickle_daytona_file(file_name, sandbox):
+    # # List files in a directory
+    # files = sandbox.fs.list_files("")
+
+    # for file in files:
+    #     print(f"Name: {file.name}")
+    #     print(f"Is directory: {file.is_dir}")
+    #     print(f"Size: {file.size}")
+    #     print(f"Modified: {file.mod_time}")
+
     content = sandbox.fs.download_file(f"{file_name}.pkl")
 
     with open("temp/new_individual.pkl", "wb") as f:
         f.write(content)
 
     obj = unpickle_object("new_individual")
+
+    #Delete file afterwards
+    try:
+        print("Deleting file...")
+        sandbox.fs.delete_file(f"{file_name}.pkl")
+    except DaytonaNotFoundError:
+        pass #File does not exist (TODO - Better way of handling this?)
 
     return obj
 

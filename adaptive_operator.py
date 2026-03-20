@@ -32,7 +32,7 @@ class MaximumNumberRetries(Exception):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
 class AdaptiveOperator():
-    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, max_num_retries=5, model="Qwen/Qwen3-Coder-Next-FP8"):
+    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
         self.llm_client = client
         self.llm_model = model
 
@@ -43,6 +43,7 @@ class AdaptiveOperator():
 
         #Number of times to retry generating LLM response 
         self.max_num_retries = max_num_retries 
+        self.max_local_skips = max_local_skips
 
         #Setup custom operator
         self.operator_design = None 
@@ -55,6 +56,7 @@ class AdaptiveOperator():
         self.num_offspring = num_offspring
 
         self.num_retries = 0
+        self.local_skips = 0
 
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
@@ -66,6 +68,14 @@ class AdaptiveOperator():
         self.current_operator_module = None
         self.operator_design_validated = False
         self.llm_prompt = None
+        self.num_retries = 0
+        self.local_skips = 0
+
+    def remove_design(self):
+        self.operator_design = None 
+        self.current_operator_module = None
+        self.operator_design_validated = False
+        self.local_skips = 0
 
     def load_operator_module(self, module_name, file_name):
         with open(f"temp/{file_name}.py", "w") as f:
@@ -82,9 +92,9 @@ class AdaptiveOperator():
         self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
 
     def clean_individual(self, individual):
-        #Unwraps child
-        if isinstance(individual, (list, tuple)) and len(individual) == 1:
-            individual = individual[0]
+        #Unwraps tuple (if applicable)
+        if isinstance(individual, tuple) and len(individual) == 1:
+            individual = list(individual)[0]
 
         #Converts to individual
         if not isinstance(individual, creator.Individual):
@@ -93,6 +103,8 @@ class AdaptiveOperator():
         return individual
 
     def redesign_operator(self):
+        self.remove_design()
+
         #TODO: Create a counter of how many time it retries
         code = ""
         #Keeps generating until correct format is produced
@@ -143,7 +155,7 @@ class AdaptiveOperator():
         #Pickles objects - enables transfer to sandbox environment
         for i in range(self.num_parents):
             pickle_object(individuals[i], f"individual{i}")
-        pickle_object(self.pset, "pset")
+        pickle_object(self.pset, "pset") #TODO: Upload at start
 
         #Uploads files to sandbox
         for i in range(self.num_parents):
@@ -157,7 +169,7 @@ class AdaptiveOperator():
         
         #Attempts to execute - redesigns operator if fails
         while self.num_retries < self.max_num_retries: 
-            print(f"Num retries: {self.num_retries}")
+            print(f"Number of redesigns: {self.num_retries}")
             #Inserts LLM-generated function into full operator code
             operator_code = textwrap.indent(self.operator_design, "    ")
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
@@ -174,8 +186,17 @@ class AdaptiveOperator():
                 offspring = []
                 for i in range(self.num_offspring):
                     offspring.append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
+                    print("Cleaning...")
+                    offspring[i] = self.clean_individual(offspring[i])
 
                 self.operator_design_validated = True
+
+                log = self.sandbox.fs.download_file("error.txt")
+                print(log.decode("utf-8")) #Prints error log
+
+                #TODO: Temp for testing
+                with open("temp/testing_current_remote_design.py", "w") as f:
+                    f.write(self.operator_design)
 
                 return offspring
             
@@ -229,12 +250,23 @@ class AdaptiveOperator():
 
             self.current_operator_module = load_module("llm_operator", "temp/operator_design.py")
 
+            #Delete operator file - prevents being used multiple times
+            os.remove("temp/operator_design.py")
+
         #Attempt to apply operator locally
         if self.current_operator_module != None:
             try:
+                # print("INDIVIDUAL 1")
+                # print(individuals[0])
+
+                #TODO: Temp for testing
+                with open("temp/testing_current_local_design.py", "w") as f:
+                    f.write(self.operator_design)
+
                 offspring = self.apply_operator(individuals)
 
                 #Ensure correct types
+                # print("CLEANING....")
                 for i in range(len(offspring)):
                     offspring[i] = self.clean_individual(offspring[i])
 
@@ -248,10 +280,15 @@ class AdaptiveOperator():
             except Exception as e:
                 #Get new individuals (TODO)
                 print(f"Can't execute operator (num_parents: {self.num_parents}) locally..")
+                print(f"Num skips: {self.local_skips}")
                 print(e)
-                self.redesign_operator()
 
-                #For now, returns original individuals
+                self.local_skips += 1
+                if self.local_skips >= self.max_local_skips:
+                    print("Maximum number of local skips exceeded, redesigning operator...")
+                    self.redesign_operator()
+
+                #If operator doesn't work, return the original individuals 
                 return individuals
             
         else:

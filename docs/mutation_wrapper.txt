@@ -29,17 +29,12 @@ INSERT_METHOD_DEFINITION_HERE
     #Run mutation
     result = mutate_individual(individual, pset)
 
-    #Unwraps list
-    if isinstance(result[0], (list, tuple)) and len(result[0]) == 1:
-        result[0] = result[0][0]
-
-    #Converts to Individual (if not already)
-    if not isinstance(result[0], creator.Individual):
-        result[0] = creator.Individual(result[0])
-
     #Save result
     with open("offspring0.pkl", "wb") as f:
-        pickle.dump(result[0], f)
+        pickle.dump(result, f)
+
+    with open("error.txt", "a") as f:
+        f.write("Successfully executed remotely")
 
 except Exception as e:
     import traceback

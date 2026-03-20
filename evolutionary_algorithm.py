@@ -61,8 +61,8 @@ class DynamicOperators():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10)
+        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=5)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=3)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
@@ -159,8 +159,8 @@ class DynamicOperators():
         #There has not been an improvement in k generations
         elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement >= self.k:
             print("Stagnating.... Redesigning...")
-            self.mutator.redesign_operator()
             self.custom_crossover.redesign_operator()
+            self.mutator.redesign_operator()
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -243,6 +243,10 @@ class DynamicOperators():
             #Solution found - early stopping
             if record["fitness"]["min"] < 0.00001:
                 break
+
+            #Each generation, reset the number of local skips each operator is allowed
+            self.mutator.local_skips = 0
+            self.custom_crossover.local_skips = 0
 
             self.check_stagnation(avg_fitness)
 

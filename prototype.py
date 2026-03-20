@@ -81,7 +81,6 @@ def get_stats(all_fit_avg, all_size_avg, all_fit_min):
 
     return fit_avg_mean, size_avg_mean, fit_min_mean
 
-
 def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2):
     xdata1 = list(range(0, len(metric_values1), 1))
     ydata1 = metric_values1
@@ -155,4 +154,4 @@ def main():
     plot_comparison_graph("Minimum Fitness", "Standard", "Adaptive Operator", ea_fit_min, ao_fit_min)
 
 if __name__ == "__main__":
-    main()
+    main() 

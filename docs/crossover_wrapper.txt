@@ -32,24 +32,14 @@ INSERT_METHOD_DEFINITION_HERE
     #Run crossover
     offspring1, offspring2 = crossover_individuals(individual1, individual2, pset)
 
-    #Unwraps list
-    if isinstance(offspring1, (list, tuple)) and len(offspring1) == 1:
-        offspring1 = offspring1[0]
-    if isinstance(offspring2, (list, tuple)) and len(offspring2) == 1:
-        offspring1 = offspring1[0]
-
-    #Converts offspring to type Individual (if not already)
-    if not isinstance(offspring1, creator.Individual):
-        offspring1 = creator.Individual(offspring1)
-    if not isinstance(offspring2, creator.Individual):
-        offspring2 = creator.Individual(offspring2)
-
     #Save result
     with open("offspring0.pkl", "wb") as f:
         pickle.dump(offspring1, f)
     with open("offspring1.pkl", "wb") as f:
         pickle.dump(offspring2, f)
 
+    with open("error.txt", "a") as f:
+        f.write("Successfully executed remotely")
 
 except Exception as e:
     import traceback

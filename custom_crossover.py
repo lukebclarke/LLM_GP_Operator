@@ -36,34 +36,19 @@ class CustomCrossover(AdaptiveOperator):
         return [offspring[0], offspring[1]]
 
     def crossover(self, individual1, individual2):
-
-        print(f"CURRENT CROSS1 TYPE: {type(individual1)}")
-        print(f"CURRENT CROSS1: {individual1}")
-
-        print(f"CURRENT CROSS2 TYPE: {type(individual2)}")
-        print(f"CURRENT CROSS: {individual2}")
-
         #By default, use one point crossover
-        if self.operator_design == None:
+        #TODO: REVERT THIS BACK
+        # if self.operator_design == None:
+        if True:
             ind1, ind2 = gp.cxOnePoint(individual1, individual2)
-            print(f"OFFSPRING 1 TYPE STANDARD: {type(ind1)}")
-            print(f"OFFSPRING 1: {ind1}")
             return ind1, ind2
         #Validates the design by using Daytona to execute the code
         elif self.operator_design != None and self.operator_design_validated == False:
             offspring = self.llm_custom_operator_daytona([individual1, individual2])
-            print(f"OFFSPRING 1 TYPE: {type(offspring[0])}")
-            print(f"OFFSPRING 1: {offspring[0]}")
-            print(f"OFFSPRING 2 TYPE: {type(offspring[1])}")
-            print(f"OFFSPRING 2: {offspring[1]}")
             return offspring[0], offspring[1]
         #If the design has already been validated, can execute locally
         elif self.operator_design != None and self.operator_design_validated == True:
             #Ensure design is saved locally
             offspring = self.llm_custom_operator_locally([individual1, individual2])
-            print(f"OFFSPRING 1 TYPE: {type(offspring[0])}")
-            print(f"OFFSPRING 1: {offspring[0]}")
-            print(f"OFFSPRING 2 TYPE: {type(offspring[1])}")
-            print(f"OFFSPRING 2: {offspring[1]}")
             return offspring[0], offspring[1]
 
