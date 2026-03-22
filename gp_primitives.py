@@ -11,3 +11,22 @@ def protectedDiv(left, right):
         return left / right
     except ZeroDivisionError:
         return 1
+
+def square(number):
+    return number**2
+
+def cube(number):
+    return number**3
+
+def protectedRoot(number):
+    try:
+        return math.sqrt(number)
+    except ValueError:
+        return 1
+
+def protectedLog(number):
+    try:
+        return math.log(number)
+    except ValueError:
+        return 1
+
