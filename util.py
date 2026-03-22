@@ -50,7 +50,6 @@ def unpickle_daytona_file(file_name, sandbox):
 
     #Delete file afterwards
     try:
-        print("Deleting file...")
         sandbox.fs.delete_file(f"{file_name}.pkl")
     except DaytonaNotFoundError:
         pass #File does not exist (TODO - Better way of handling this?)

@@ -20,6 +20,8 @@ import textwrap
 import os
 import sys
 import inspect
+import traceback
+import time
 
 class MaximumNumberRetries(Exception):
     """Exception raised when maximum number of attempts to redesign operator has been reached
@@ -239,6 +241,7 @@ class AdaptiveOperator():
 
                 #TODO: Temp for testing
                 with open("temp/testing_current_remote_design.py", "w") as f:
+                    f.write(f"#Time execution: {time.time()}\n")
                     f.write(self.operator_design)
 
                 return offspring
@@ -301,6 +304,11 @@ class AdaptiveOperator():
             #Delete operator file - prevents being used multiple times
             # os.remove("temp/operator_design.py")
 
+            #TODO: Temp for testing
+            with open("temp/testing_current_local_design.py", "w") as f:
+                f.write(f"#Time execution: {time.time()}\n")
+                f.write(self.operator_design)
+
         #Attempt to apply operator locally TODO - Used for testing purposes, can remove
         if self.current_operator_module != None:
             try:
@@ -321,9 +329,7 @@ class AdaptiveOperator():
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
 
-                #TODO: Temp for testing
-                with open("temp/testing_current_local_design.py", "w") as f:
-                    f.write(self.operator_design)
+                print(f"Successfully executed locally: {self.num_parents} Parents")
 
                 return offspring
             
@@ -333,6 +339,9 @@ class AdaptiveOperator():
                 print(f"Can't execute operator (num_parents: {self.num_parents}) locally..")
                 print(f"Num skips: {self.local_skips}")
                 print(e)
+                
+                #Print full traceback
+                traceback.print_exc()
 
                 self.local_skips += 1
                 if self.local_skips >= self.max_local_skips:

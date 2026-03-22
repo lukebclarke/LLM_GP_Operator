@@ -14,6 +14,15 @@ The function should mutate nodes in the tree **safely**, respecting their type:
 - Nodes can be Primitives (functions), Terminals (variables/constants), or Ephemeral constants.
 - You may choose how to mutate each node type (e.g., replacing, modifying, or regenerating), but ensure the mutated individual is still valid in the DEAP GP context.
 
+Avoid these common errors that arise during mutation design:
+AttributeError: 'list' object has no attribute 'root'
+AttributeError: 'list' object has no attribute 'searchSubtree'
+AttributeError: 'NoneType' object has no attribute 'arity'
+TypeError: object of type 'slice' has no len()
+TypeError: 'slice' object is not subscriptable
+list index out of range
+ValueError: Invalid node replacement with a node of a different arity.
+
 Do NOT import or reference any DEAP APIs that are not explicitly documented.
 Do NOT create GP nodes manually (__class__(), constructors, or factories are forbidden). You can access nodes using pset.primitives or pset.terminals
 Do NOT assume the existence of classes like EphemeralConstant, PrimitiveTree, or helper functions such as get_leaves.

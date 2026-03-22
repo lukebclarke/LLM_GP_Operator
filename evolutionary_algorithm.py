@@ -184,6 +184,7 @@ class DynamicOperators():
             self.custom_crossover.redesign_operator()
             self.mutator.redesign_operator()
             self.redesign_generations.append(gen_num)
+            self.gens_since_improvement = 0
         else:
             raise Exception("Error tracking fitnesses")
     
