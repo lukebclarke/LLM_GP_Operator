@@ -36,7 +36,7 @@ from custom_crossover import CustomCrossover
 
 #TODO: Define max num retires in here
 class DynamicOperators():
-    def __init__(self, n, pset, k=2):
+    def __init__(self, n, pset, X, Y, k=2):
         self.n = n
         self.pset = pset
 
@@ -58,8 +58,8 @@ class DynamicOperators():
         self.client = self.setupLLM() #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
-        self.toolbox.register("evaluate", self.evaluateIndividual, points=[x/10. for x in range(-10,10)]) #Training data is between -1 and 1
-        self.toolbox.register("select", tools.selTournament, tournsize=3)
+        self.toolbox.register("evaluate", self.evaluateIndividual, X, Y)
+        self.toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
@@ -75,7 +75,7 @@ class DynamicOperators():
         self.toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
         #Initialises population
-        self.pop = self.toolbox.population(n=300)
+        self.pop = self.toolbox.population(n=n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
 
         # Track statistics
@@ -95,6 +95,7 @@ class DynamicOperators():
 
     def reset_state(self):
         #Used for when algorithms are run multiple times
+        #TODO: Delete this?
         self.pop = self.toolbox.population(n=self.n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
         self.fitness_improvements = []
@@ -133,14 +134,14 @@ class DynamicOperators():
 
         return sandbox
 
-    def evaluateIndividual(self, individual, points):
-        #TODO: This is temporary for this specific function
-        #Defines the fitness function for an individual 
-        func = self.toolbox.compile(expr=individual) #Transform the tree expression in a callable function
+    def evaluateIndividual(self, individual, X, Y):
+        #Transform the tree expression in a callable function
+        func = self.toolbox.compile(expr=individual) 
 
-        # Evaluate the mean squared error between the expression and the real function : x**4 + x**3 + x**2 + x
-        sqerrors = ((func(x) - x**4 - x**3 - x**2 - x)**2 for x in points)
-        return math.fsum(sqerrors) / len(points),
+        #Evaluate the mean squared error between the expression and the real function
+        sqerrors = ((func(x) - y)**2 for x, y in zip(X, Y))
+
+        return math.fsum(sqerrors) / len(X),
 
     def adaptive_operator_stats(self):
         stats = {}
@@ -273,6 +274,6 @@ class DynamicOperators():
 
         ao_stats = self.adaptive_operator_stats()
         return self.pop, logbook, self.hof, ao_stats
-    
+        
     def shutdown_sandbox(self):
         self.sandbox.delete()
