@@ -1,17 +1,14 @@
 with open("error.txt", "w") as f:
-    f.write("Crossover execution started...\n")
+    f.write("Mutation execution started...\n")
 
 try: 
+INSERT_METHOD_DEFINITION_HERE
+
     import os
     import pickle
     from deap import base, creator, tools, gp
-    import math
-    import operator
     import gp_primitives
-    from functools import partial
     import random
-
-INSERT_METHOD_DEFINITION_HERE
 
     if not hasattr(creator, "FitnessMin"):
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
@@ -24,19 +21,14 @@ INSERT_METHOD_DEFINITION_HERE
         pset = pickle.load(f)
     
     with open("individual0.pkl", "rb") as f:
-        individual1 = pickle.load(f)
-
-    with open("individual1.pkl", "rb") as f:
-        individual2 = pickle.load(f)
+        individual = pickle.load(f)
     
-    #Run crossover
-    offspring1, offspring2 = crossover_individuals(individual1, individual2, pset)
+    #Run mutation
+    result = mutate_individual(individual, pset)
 
     #Save result
     with open("offspring0.pkl", "wb") as f:
-        pickle.dump(offspring1, f)
-    with open("offspring1.pkl", "wb") as f:
-        pickle.dump(offspring2, f)
+        pickle.dump(result, f)
 
     with open("error.txt", "a") as f:
         f.write("Successfully executed remotely")

@@ -1,0 +1,8 @@
+from deap import base, creator, tools, gp
+import gp_primitives
+import random
+
+INSERT_METHOD_DEFINITION_HERE
+
+#Run crossover
+offspring1, offspring2 = crossover_individuals(individual1, individual2, pset)

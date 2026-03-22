@@ -32,13 +32,14 @@ class MaximumNumberRetries(Exception):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
 class AdaptiveOperator():
-    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
+    def __init__(self, client, sandbox, pset, toolbox, custom_creator, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
         self.llm_client = client
         self.llm_model = model
 
         #Problem Definition
         self.pset = pset
         self.toolbox = toolbox
+        self.creator = custom_creator
         self.sandbox = sandbox
 
         #Number of times to retry generating LLM response 
@@ -50,6 +51,7 @@ class AdaptiveOperator():
         self.current_operator_module = None
         self.operator_design_validated = False
         self.daytona_wrapper = None
+        self.local_wrapper = None
         self.original_llm_prompt = None
         self.llm_prompt = None
         self.num_parents = num_parents
@@ -153,6 +155,7 @@ class AdaptiveOperator():
     def redesign_operator(self):
         self.remove_design()
         self.total_num_redesigns += 1
+        self.local_skips = 0
 
         #TODO: Create a counter of how many time it retries
         code = ""
@@ -161,7 +164,6 @@ class AdaptiveOperator():
             self.num_retries += 1
 
             code = self.llm_standard_model()
-            print(code)
 
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
@@ -230,6 +232,7 @@ class AdaptiveOperator():
                         raise Exception("Invalid offspring generated")
 
                 self.operator_design_validated = True
+                self.current_operator_module = None
 
                 log = self.sandbox.fs.download_file("error.txt")
                 print(log.decode("utf-8")) #Prints error log
@@ -282,26 +285,27 @@ class AdaptiveOperator():
 
         #Ensure that the Python design is saved locally
         if self.current_operator_module == None:
-            with open("temp/operator_design.py", "w") as f:
-                #Ensures imports are present
-                f.write("from deap import base, creator, tools, gp\n")
-                f.write("import random\n")
-                f.write(self.operator_design)
+            # operator_code = textwrap.indent(self.operator_design, "    ")
+            print("RE-WRITING LOCAL METHOD")
+            wrapper_text = self.local_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", self.operator_design)
 
-            self.current_operator_module = load_module("llm_operator", "temp/operator_design.py")
+            self.current_operator_module = compile(wrapper_text, f"operator_{self.num_parents}", "exec")
+            # with open("temp/operator_design.py", "w") as f:
+            #     #Ensures imports are present
+            #     f.write("from deap import base, creator, tools, gp\n")
+            #     f.write("import random\n")
+            #     f.write(self.operator_design)
+
+            # self.current_operator_module = load_module("llm_operator", "temp/operator_design.py")
 
             #Delete operator file - prevents being used multiple times
-            os.remove("temp/operator_design.py")
+            # os.remove("temp/operator_design.py")
 
-        #Attempt to apply operator locally
+        #Attempt to apply operator locally TODO - Used for testing purposes, can remove
         if self.current_operator_module != None:
             try:
                 # print("INDIVIDUAL 1")
                 # print(individuals[0])
-
-                #TODO: Temp for testing
-                with open("temp/testing_current_local_design.py", "w") as f:
-                    f.write(self.operator_design)
 
                 offspring = self.apply_operator(individuals)
 
@@ -316,6 +320,10 @@ class AdaptiveOperator():
                 #TODO: Reset num_retries at end of generation
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
+
+                #TODO: Temp for testing
+                with open("temp/testing_current_local_design.py", "w") as f:
+                    f.write(self.operator_design)
 
                 return offspring
             

@@ -1,0 +1,8 @@
+from deap import base, creator, tools, gp
+import gp_primitives
+import random
+
+INSERT_METHOD_DEFINITION_HERE
+
+#Run mutation
+result = mutate_individual(individual, pset)

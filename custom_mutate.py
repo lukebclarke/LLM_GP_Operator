@@ -15,13 +15,16 @@ import inspect
 from adaptive_operator import AdaptiveOperator
 
 class CustomMutate(AdaptiveOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
+    def __init__(self, client, sandbox, pset, toolbox, custom_creator, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
         #Mutation operators have 2 parents and 2 offspring
-        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
+        super().__init__(client, sandbox, pset, toolbox, custom_creator, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
 
         #Wrapper for code
-        with open("docs/mutation_wrapper.txt", "r") as f:
+        with open("docs/mutation_remote_wrapper.txt", "r") as f:
             self.daytona_wrapper = f.read()
+
+        with open("docs/mutation_local_wrapper.txt", "r") as f:
+            self.local_wrapper = f.read()
 
         #Gets LLM Prompt from file
         with open("docs/LLMPromptMutation.txt", "r") as f:
@@ -32,8 +35,20 @@ class CustomMutate(AdaptiveOperator):
         sys.path.append('/temp')
 
     def apply_operator(self, individuals):
-        ind = individuals[0]
-        offspring = self.current_operator_module.mutate_individual(ind, self.pset)
+        # ind = individuals[0]
+        # offspring = self.current_operator_module.mutate_individual(ind, self.pset)
+
+        #Sets up environment
+        global_env = {
+            "individual": individuals[0],
+            "pset": self.pset, 
+            "creator": self.creator
+        }
+
+        #Executes compiled code
+        exec(self.current_operator_module, global_env, global_env)
+
+        offspring = global_env["result"]
 
         #Ensures in correct format
         if isinstance(offspring, tuple) and len(offspring)==1:

@@ -15,13 +15,16 @@ import sys
 import inspect
 
 class CustomCrossover(AdaptiveOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
+    def __init__(self, client, sandbox, pset, toolbox, custom_creator, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
         #Crossover operators have 2 parents and 2 offspring
-        super().__init__(client, sandbox, pset, toolbox, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
+        super().__init__(client, sandbox, pset, toolbox, custom_creator, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
 
         #Wrapper for code
-        with open("docs/crossover_wrapper.txt", "r") as f:
+        with open("docs/crossover_remote_wrapper.txt", "r") as f:
             self.daytona_wrapper = f.read()
+
+        with open("docs/crossover_local_wrapper.txt", "r") as f:
+            self.local_wrapper = f.read()
 
         #Gets LLM Prompt from file
         with open("docs/LLMPromptCrossover.txt", "r") as f:
@@ -32,14 +35,26 @@ class CustomCrossover(AdaptiveOperator):
         sys.path.append('/temp')
 
     def apply_operator(self, individuals):
-        offspring = self.current_operator_module.crossover_individuals(individuals[0], individuals[1], self.pset)
-        return [offspring[0], offspring[1]]
+        # offspring = self.current_operator_module.crossover_individuals(individuals[0], individuals[1], self.pset)
+
+        #Sets up environment
+        global_env = {
+            "individual1": individuals[0],
+            "individual2": individuals[1],
+            "pset": self.pset, 
+            "creator": self.creator
+        }
+
+        #Executes compiled code
+        exec(self.current_operator_module, global_env, global_env)
+
+        return [global_env["offspring1"], global_env["offspring2"]]
 
     def crossover(self, individual1, individual2):
         #By default, use one point crossover
         #TODO: REVERT THIS BACK
-        # if self.operator_design == None:
-        if True:
+        if self.operator_design == None:
+        # if True:
             ind1, ind2 = gp.cxOnePoint(individual1, individual2)
             return ind1, ind2
         #Validates the design by using Daytona to execute the code
