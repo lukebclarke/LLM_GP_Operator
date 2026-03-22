@@ -90,10 +90,10 @@ class AdaptiveRegressor(RegressorMixin, BaseEstimator):
         self.verbose = verbose
 
         #Variables accessed after fitting
-        self.final_pop = None
-        self.hof = None
-        self.stats = None
-        self.logbook = None
+        self.final_pop_ = None
+        self.hof_ = None
+        self.stats_ = None
+        self.logbook_ = None
 
     def create_pset(self, n_features):
         pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
