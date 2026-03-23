@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 from custom_mutate import CustomMutate
 from custom_crossover import CustomCrossover
 
-
+#TODO: Rename/refactor class
 #TODO: Define max num retires in here
 class DynamicOperators():
     def __init__(self, n, pset, X, Y, k=2):
@@ -102,9 +102,18 @@ class DynamicOperators():
         self.hof = tools.HallOfFame(1) #We track 1 best solution
         self.fitness_improvements = []
         self.gens_since_improvement = 0
-        self.prev_min_fitness = 100000
+        self.prev_min_fitness = np.inf
         self.mutator.reset_operator()
         self.custom_crossover.reset_operator()
+
+        #Resets statistics - TODO: not sure if needed
+        stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
+        stats_size = tools.Statistics(len)
+        self.mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
+        self.mstats.register("avg", numpy.mean)
+        self.mstats.register("std", numpy.std)
+        self.mstats.register("min", numpy.min)
+        self.mstats.register("max", numpy.max)
 
     def setupLLM(self):
         #Defines LLM Client for custom genetic operators
@@ -121,6 +130,7 @@ class DynamicOperators():
     def setupDaytona(self):
         daytonaClient = Daytona()
         sandbox = daytonaClient.create()
+        print("Sandbox setup")
         
         #Install DEAP
         sandbox.process.exec("python -m pip install deap==1.4.1")
@@ -130,9 +140,8 @@ class DynamicOperators():
         with open("gp_primitives.py", "rb") as f:
             content = f.read()
             sandbox.fs.upload_file(content, "gp_primitives.py")
-        print("Primitives copied")
 
-        print("Sandbox initialised")
+        print("Primitives uploaded")
 
         return sandbox
 

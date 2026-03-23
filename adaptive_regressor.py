@@ -95,6 +95,15 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.stats_ = None
         self.logbook_ = None
 
+        self.algorithms_ = None
+
+    def shutdown_sandbox(self):
+        if self.algorithms_:
+            self.algorithms_.shutdown_sandbox()
+            return True
+        
+        return False
+
     def create_pset(self, n_features):
         pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
 
@@ -154,10 +163,17 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         #Gets problem set
         pset = self.create_pset(n_features)
 
-        #Runs evolutionary algorithm with pset
-        algorithms = DynamicOperators(self.pop_size, pset, X, y, self.k)
-        self.final_pop_, self.logbook_, self.hof_, self.stats_ = algorithms.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
-        algorithms.shutdown_sandbox()
+        #If we have already initialised regressor, don't load up operators class again (sandbox takes long time to initialise)
+        if self.algorithms_ == None:
+            self.algorithms_ = DynamicOperators(self.pop_size, pset, X, y, self.k)
+        #If we have already run algorithm, reset all variables
+        else:
+            self.final_pop_ = None
+            self.hof_ = None
+            self.stats_ = None
+            self.logbook_ = None
+
+        self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
 
         self.is_fitted_ = True
         return self
