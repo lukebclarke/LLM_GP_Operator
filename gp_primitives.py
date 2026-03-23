@@ -8,7 +8,11 @@ from functools import partial
 
 def protectedDiv(left, right):
     try:
-        return left / right
+        result = left / right
+        #Numpy may return inf when dividing by zero
+        if math.isinf(result):
+            return 1
+        return result
     except (ZeroDivisionError, ValueError):
         return 1
 
@@ -26,7 +30,11 @@ def cube(number):
 
 def protectedRoot(number):
     try:
-        return math.sqrt(number)
+        result = math.sqrt(number)
+        #Numpy may return inf when dividing by zero
+        if math.isinf(result):
+            return 1
+        return result
     except Exception:
         return 1
 

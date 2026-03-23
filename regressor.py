@@ -51,7 +51,7 @@ def get_string(tree, index=0, variable_mapping={}):
     """
     
     #Defines how to handle each term
-    bracket_terms = ["log", "protectedDiv", "protectedRoot", "protectedExp", "protectedLog", "sin", "cos", "tan", "exp"]
+    bracket_terms = ["log", "/", "sqrt", "exp", "sin", "cos", "tan"]
     sympy_mapping = {
         "add": "+",
         "sub": "-",
@@ -61,7 +61,7 @@ def get_string(tree, index=0, variable_mapping={}):
         "protectedExp": "exp",
         "protectedLog": "log",
         "cube": "**3",
-        "square": "**2"
+        "square": "**2",
     }
 
     current_node = tree[index]
