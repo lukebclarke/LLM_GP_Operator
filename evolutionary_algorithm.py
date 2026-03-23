@@ -39,6 +39,8 @@ class DynamicOperators():
     def __init__(self, n, pset, X, Y, k=2):
         self.n = n
         self.pset = pset
+        self.X = X
+        self.Y = Y
 
         #Loads in environment variables
         load_dotenv()
@@ -58,7 +60,7 @@ class DynamicOperators():
         self.client = self.setupLLM() #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
-        self.toolbox.register("evaluate", self.evaluateIndividual, X, Y)
+        self.toolbox.register("evaluate", self.evaluateIndividual)
         self.toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
@@ -134,14 +136,16 @@ class DynamicOperators():
 
         return sandbox
 
-    def evaluateIndividual(self, individual, X, Y):
+    def evaluateIndividual(self, individual):
+        #TODO: Work for multiple Y values
         #Transform the tree expression in a callable function
         func = self.toolbox.compile(expr=individual) 
 
         #Evaluate the mean squared error between the expression and the real function
-        sqerrors = ((func(x) - y)**2 for x, y in zip(X, Y))
+        sqerrors = np.array([(func(*x) - y)**2 for x, y in zip(self.X, self.Y)])
+        sqerrors = sqerrors.flatten()
 
-        return math.fsum(sqerrors) / len(X),
+        return math.fsum(sqerrors) / len(self.X),
 
     def adaptive_operator_stats(self):
         stats = {}
@@ -163,7 +167,7 @@ class DynamicOperators():
         # Run GP - Simple Evolutionary Algorithm
         pop, log = algorithms.eaSimple(self.pop, self.toolbox, 0.5, 0.1, 40, stats=self.mstats,
                                     halloffame=self.hof, verbose=True)
-        
+                
         return pop, log, self.hof
         
     def check_stagnation(self, current_fitness, gen_num):

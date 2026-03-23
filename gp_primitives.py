@@ -27,13 +27,13 @@ def cube(number):
 def protectedRoot(number):
     try:
         return math.sqrt(number)
-    except (ZeroDivisionError, ValueError):
+    except Exception:
         return 1
 
 def protectedLog(number):
     try:
         return math.log(number)
-    except ValueError:
+    except Exception:
         return 1
 
 def protectedExp(number):
@@ -41,6 +41,6 @@ def protectedExp(number):
         return math.exp(number)
     except OverflowError:
         return 10**10
-    except ValueError:
-        return 0
+    except Exception:
+        return 1
 

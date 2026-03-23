@@ -109,7 +109,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             "sqrt": (gp_primitives.protectedRoot, 1),
             "sin": (math.sin, 1),
             "cos": (math.cos, 1),
-            "exp": (math.exp, 1),
+            "exp": (gp_primitives.protectedExp, 1),
             "log": (gp_primitives.protectedLog, 1)
         }
 
@@ -143,10 +143,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         """
         #TODO: Check this line
         # X, y = self._validate_params(X, y, accept_sparse=True)
-        if len(X.shape) == 1:
-            n_features = 1
-        else:
-            n_features = X.shape[1]
+
+        #Remove headers, if applicable
+        if hasattr(X, "values"):
+            X = X.values
+        if hasattr(y, "values"):
+            y = y.values
+        n_features = X.shape[1]
 
         #Gets problem set
         pset = self.create_pset(n_features)

@@ -6,6 +6,7 @@ import inspect
 import networkx as nx
 import pygraphviz as pgv
 import numpy as np
+import pandas as pd
 
 #Testing - TODO: Can remove
 import operator
@@ -49,19 +50,22 @@ def get_string(tree, index=None, variable_mapping={}):
     """
     
     #Defines how to handle each term
-    bracket_terms = ["log", "protectedDiv", "protectedRoot", "sin", "cos", "tan", "exp"]
+    bracket_terms = ["log", "protectedDiv", "protectedRoot", "protectedExp", "protectedLog", "sin", "cos", "tan", "exp"]
     sympy_mapping = {
         "add": "+",
         "sub": "-",
         "mul": "*",
         "protectedDiv": "/",
         "protectedRoot": "sqrt",
+        "protectedExp": "exp",
+        "protectedLog": "log",
         "cube": "**3",
         "square": "**2"
     }
 
     if index == None:
         current_node = tree.root
+        index = tree.index(current_node)
     else:
         current_node = tree[index]
 
@@ -135,7 +139,7 @@ def model(est, X=None):
     """
 
     #Finds best model
-    new_model = est.hof_[0]
+    new_model = est.hof[0]
 
     #Maps variable names in model to variable names in training data
     mapping = {'ARG'+str(i):k for i,k in enumerate(X.columns)}
@@ -148,21 +152,22 @@ def get_testing_data():
     X = np.array([])
     Y = np.array([])
     for i in range(500):
-        x = random.uniform(0, 1000)
+        x = random.uniform(0, 10)
         y = (x**3) + (x**2) + (x) + 1
         X = np.append(X, x)
         Y = np.append(Y, y)
 
-    print(X)
-    
-    X.reshape(-1, 1)
-    Y.reshape(-1, 1)
+    X = X.reshape(-1, 1)
+    Y = Y.reshape(-1, 1)
+
+    X = pd.DataFrame(X, columns=['X'])
+    Y = pd.DataFrame(Y, columns=['Y'])
 
     return X, Y
 
 def test_model():
     X, Y = get_testing_data()
     est.fit(X, Y)
-    print(model(est))
+    print(model(est, X))
 
 test_model()
