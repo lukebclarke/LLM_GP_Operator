@@ -157,7 +157,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         #Runs evolutionary algorithm with pset
         algorithms = DynamicOperators(self.pop_size, pset, X, y, self.k)
         self.final_pop_, self.logbook_, self.hof_, self.stats_ = algorithms.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
-        # self.final_pop, self.logbook, self.hof = algorithms.runSimpleEA()
+        algorithms.shutdown_sandbox()
 
         self.is_fitted_ = True
         return self
