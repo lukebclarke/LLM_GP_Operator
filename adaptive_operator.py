@@ -134,7 +134,6 @@ class AdaptiveOperator():
         return code
     
     def llm_reasoning_model(self):
-        print("Doing...")
         response = self.llm_client.chat.completions.create(
                 model="MiniMaxAI/MiniMax-M2.5",
                 temperature=0.80,
@@ -149,7 +148,6 @@ class AdaptiveOperator():
                 max_tokens=2000,
             )
                 
-        print("got response/timeout")
         code = response.choices[0].message.content
         
         return code
@@ -237,7 +235,7 @@ class AdaptiveOperator():
                 self.current_operator_module = None
 
                 log = self.sandbox.fs.download_file("error.txt")
-                print(log.decode("utf-8")) #Prints error log
+                # print(log.decode("utf-8")) #Prints error log
 
                 #TODO: Temp for testing
                 with open("temp/testing_current_remote_design.py", "w") as f:
@@ -248,18 +246,18 @@ class AdaptiveOperator():
             
             #TODO: Better error handling
             except SyntaxError as e:
-                print("Generated code has a syntax error:")
-                print(e)
-                print("Line:", e.lineno)
-                print("Text:", e.text)
+                # print("Generated code has a syntax error:")
+                # print(e)
+                # print("Line:", e.lineno)
+                # print("Text:", e.text)
 
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
 
             except Exception as e:
-                error = self.sandbox.fs.download_file("error.txt")
-                print("Remote error occured:")
-                print(error.decode("utf-8")) #Prints error log
+                # error = self.sandbox.fs.download_file("error.txt")
+                # print("Remote error occured:")
+                # print(error.decode("utf-8")) #Prints error log
 
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
@@ -288,21 +286,9 @@ class AdaptiveOperator():
 
         #Ensure that the Python design is saved locally
         if self.current_operator_module == None:
-            # operator_code = textwrap.indent(self.operator_design, "    ")
-            print("RE-WRITING LOCAL METHOD")
             wrapper_text = self.local_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", self.operator_design)
 
             self.current_operator_module = compile(wrapper_text, f"operator_{self.num_parents}", "exec")
-            # with open("temp/operator_design.py", "w") as f:
-            #     #Ensures imports are present
-            #     f.write("from deap import base, creator, tools, gp\n")
-            #     f.write("import random\n")
-            #     f.write(self.operator_design)
-
-            # self.current_operator_module = load_module("llm_operator", "temp/operator_design.py")
-
-            #Delete operator file - prevents being used multiple times
-            # os.remove("temp/operator_design.py")
 
             #TODO: Temp for testing
             with open("temp/testing_current_local_design.py", "w") as f:
@@ -312,13 +298,9 @@ class AdaptiveOperator():
         #Attempt to apply operator locally TODO - Used for testing purposes, can remove
         if self.current_operator_module != None:
             try:
-                # print("INDIVIDUAL 1")
-                # print(individuals[0])
-
                 offspring = self.apply_operator(individuals)
 
                 #Ensure correct types
-                # print("CLEANING....")
                 for i in range(len(offspring)):
                     offspring[i] = self.clean_individual(offspring[i])
 
@@ -329,19 +311,11 @@ class AdaptiveOperator():
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
 
-                print(f"Successfully executed locally: {self.num_parents} Parents")
-
                 return offspring
             
             #Redesign if code is unable to execute locally
             except Exception as e:
                 #Get new individuals (TODO)
-                print(f"Can't execute operator (num_parents: {self.num_parents}) locally..")
-                print(f"Num skips: {self.local_skips}")
-                print(e)
-                
-                #Print full traceback
-                traceback.print_exc()
 
                 self.local_skips += 1
                 if self.local_skips >= self.max_local_skips:
