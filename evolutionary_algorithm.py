@@ -93,7 +93,7 @@ class DynamicOperators():
 
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
         self.gens_since_improvement = 0
-        self.prev_avg_fitness = np.inf
+        self.prev_min_fitness = np.inf
 
     def reset_state(self):
         #Used for when algorithms are run multiple times
@@ -102,7 +102,7 @@ class DynamicOperators():
         self.hof = tools.HallOfFame(1) #We track 1 best solution
         self.fitness_improvements = []
         self.gens_since_improvement = 0
-        self.prev_avg_fitness = 100000
+        self.prev_min_fitness = 100000
         self.mutator.reset_operator()
         self.custom_crossover.reset_operator()
 
@@ -175,16 +175,16 @@ class DynamicOperators():
         self.gens_since_improvement += 1
 
         #Updates statistics
-        self.fitness_improvements.append(self.prev_avg_fitness - current_fitness)
+        self.fitness_improvements.append(self.prev_min_fitness - current_fitness)
 
-        if current_fitness < self.prev_avg_fitness:
-            self.prev_avg_fitness = current_fitness
+        if current_fitness < self.prev_min_fitness:
+            self.prev_min_fitness = current_fitness
             self.gens_since_improvement = 0
         #There has not been an improvement, but less than k generations have surpassed
-        elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement < self.k:
+        elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement < self.k:
             self.gens_since_improvement += 1
         #There has not been an improvement in k generations
-        elif current_fitness >= self.prev_avg_fitness and self.gens_since_improvement >= self.k:
+        elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement >= self.k:
             print("Stagnating.... Redesigning...")
             self.custom_crossover.redesign_operator()
             self.mutator.redesign_operator()
@@ -249,7 +249,7 @@ class DynamicOperators():
             if verbose:
                 print(logbook.stream)
 
-            avg_fitness = record['fitness']['avg']
+            min_fitness = record['fitness']['min']
 
             history["avg_fitness"].append(float(record["fitness"]["avg"]))
             history["max_fitness"].append(float(record["fitness"]["max"]))
@@ -274,7 +274,7 @@ class DynamicOperators():
             self.mutator.num_retries = 0
             self.custom_crossover.num_retries = 0
 
-            self.check_stagnation(avg_fitness, gen)
+            self.check_stagnation(min_fitness, gen)
 
         ao_stats = self.adaptive_operator_stats()
         return self.pop, logbook, self.hof, ao_stats
