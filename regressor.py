@@ -26,6 +26,7 @@ est = AdaptiveRegressor(
     cxpb=0.7,
     mutpb=0.1,
     k=3,
+    functions=["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
     verbose=True
 )
 
@@ -153,7 +154,7 @@ def get_testing_data():
     X = np.array([])
     Y = np.array([])
     for i in range(500):
-        x = random.uniform(0, 10)
+        x = random.uniform(-1, 1)
         y = (x**3) + (x**2) + (x) + 1
         X = np.append(X, x)
         Y = np.append(Y, y)
