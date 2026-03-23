@@ -10,8 +10,8 @@ def protectedDiv(left, right):
     try:
         result = left / right
         #Numpy may return inf when dividing by zero
-        if math.isinf(result):
-            return 1
+        if math.isinf(result) or math.isnan(result):
+            raise ZeroDivisionError
         return result
     except (ZeroDivisionError, ValueError):
         return 1
@@ -32,21 +32,29 @@ def protectedRoot(number):
     try:
         result = math.sqrt(number)
         #Numpy may return inf when dividing by zero
-        if math.isinf(result):
-            return 1
+        if math.isinf(result) or math.isnan(result):
+            raise Exception
         return result
     except Exception:
         return 1
 
 def protectedLog(number):
     try:
-        return math.log(number)
+        result = math.log(number)
+        if math.isinf(result) or math.isnan(result):
+            raise Exception
+        return result
     except Exception:
         return 1
 
 def protectedExp(number):
     try:
-        return math.exp(number)
+        result = math.exp(number)
+        if math.isinf(result):
+            raise OverflowError
+        elif math.isnan(result):
+            raise Exception
+        return result
     except OverflowError:
         return 10**10
     except Exception:
