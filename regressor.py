@@ -29,7 +29,7 @@ est = AdaptiveRegressor(
     verbose=True
 )
 
-def get_string(tree, index=None, variable_mapping={}):
+def get_string(tree, index=0, variable_mapping={}):
     """  
     Converts a DEAP expression to a sympy compatible model
 
@@ -63,14 +63,15 @@ def get_string(tree, index=None, variable_mapping={}):
         "square": "**2"
     }
 
-    if index == None:
-        current_node = tree.root
-        index = tree.index(current_node)
-    else:
-        current_node = tree[index]
+    current_node = tree[index]
+    current_node_str = str(current_node.name)
 
-    #Converts to string by firstly converting to PrimitiveTree, and then using DEAP's built in string conversion
-    current_node = str(current_node.name)
+    #Handles constants
+    if current_node_str == "rand101":
+        current_node = str(current_node.value)
+    else:
+        #Converts to string by firstly converting to PrimitiveTree, and then using DEAP's built in string conversion
+        current_node = current_node_str
 
     #TODO: Better way to do this?
     #Converts any names to sympy formats
@@ -116,7 +117,7 @@ def get_children_indices(tree, index):
     #First child
     i = index + 1 
     for _ in range(node.arity):
-        #Finds out number of nodes in child's subtree
+        #Finds out what nodes start each subtree
         children_indices.append(i)
         i += len(tree[tree.searchSubtree(i)])
     
@@ -169,5 +170,6 @@ def test_model():
     X, Y = get_testing_data()
     est.fit(X, Y)
     print(model(est, X))
+
 
 test_model()
