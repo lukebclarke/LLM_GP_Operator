@@ -21,7 +21,7 @@ from deap import gp
 import gp_primitives
 from evolutionary_algorithm import DynamicOperators
 
-class AdaptiveRegressor(RegressorMixin, BaseEstimator):
+class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     """A scikit-learn regressor model for an evolutionary algorithm with adaptive operators
 
     Parameters
@@ -79,7 +79,7 @@ class AdaptiveRegressor(RegressorMixin, BaseEstimator):
         "verbose": [bool]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8*60*60, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -141,16 +141,20 @@ class AdaptiveRegressor(RegressorMixin, BaseEstimator):
         self : object
             Returns self.
         """
-        X, y = self._validate_data(X, y, accept_sparse=True)
-
-        n_features = X.shape[1]
+        #TODO: Check this line
+        # X, y = self._validate_params(X, y, accept_sparse=True)
+        if len(X.shape) == 1:
+            n_features = 1
+        else:
+            n_features = X.shape[1]
 
         #Gets problem set
         pset = self.create_pset(n_features)
 
         #Runs evolutionary algorithm with pset
         algorithms = DynamicOperators(self.pop_size, pset, X, y, self.k)
-        self.final_pop, self.logbook, self.hof, self.stats = algorithms.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
+        # self.final_pop, self.logbook, self.hof, self.stats = algorithms.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
+        self.final_pop, self.logbook, self.hof = algorithms.runSimpleEA()
 
         self.is_fitted_ = True
         return self
@@ -173,6 +177,6 @@ class AdaptiveRegressor(RegressorMixin, BaseEstimator):
             best_solution = self.hof[0]
             func = self.toolbox.compile(expr=best_solution) 
 
-        X = self._validate_data(X, accept_sparse=True, reset=False)
+        # X = self._validate_params(X)
 
         return np.array([func(*row) for row in X])
