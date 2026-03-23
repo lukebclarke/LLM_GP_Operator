@@ -150,6 +150,23 @@ def model(est, X=None):
 
     return model_str
 
+def complexity(est):
+    """
+    Counts the number of nodes required to represent the final estimator's symbolic expression as a parse tree
+
+    Parameters
+    ----------
+    est: sklearn regressor
+        The fitted model. 
+ 
+    Returns
+    -------
+    The count of the number of nodes in the final tree
+    """
+    best_model = est.hof[0]
+    
+    return len(best_model)
+
 def get_testing_data():
     X = np.array([])
     Y = np.array([])
