@@ -94,6 +94,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.hof_ = None
         self.stats_ = None
         self.logbook_ = None
+        self.toolbox_ = None
 
     def create_pset(self, n_features):
         pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
@@ -188,9 +189,9 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
         creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
-        toolbox = self.create_toolbox(pset, X, y)
+        self.toolbox_ = self.create_toolbox(pset, X, y)
 
-        self.final_pop_ = toolbox.population(n=self.pop_size)
+        self.final_pop_ = self.toolbox_.population(n=self.pop_size)
         self.hof_ = tools.HallOfFame(1) #We track 1 best solution
 
         #Track statistics
@@ -205,7 +206,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.redesign_generations = []
 
         #Run simple EA
-        self.final_pop_, self.logbook_ = algorithms.eaSimple(self.final_pop_, toolbox, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
+        self.final_pop_, self.logbook_ = algorithms.eaSimple(self.final_pop_, self.toolbox_, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
                                     halloffame=self.hof_, verbose=True)
                 
         self.is_fitted_ = True
@@ -226,8 +227,8 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         """
         if check_is_fitted(self):
             #Finds best solution, and compiles it into an equation
-            best_solution = self.hof[0]
-            func = self.toolbox.compile(expr=best_solution) 
+            best_solution = self.hof_[0]
+            func = self.toolbox_.compile(expr=best_solution) 
 
         #TODO: Check line
         # X = self._validate_params(X)
