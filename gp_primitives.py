@@ -9,19 +9,25 @@ from functools import partial
 def protectedDiv(left, right):
     try:
         return left / right
-    except ZeroDivisionError:
+    except (ZeroDivisionError, ValueError):
         return 1
 
 def square(number):
-    return number**2
+    try:
+        return number**2
+    except OverflowError:
+        return 10**10
 
 def cube(number):
-    return number**3
+    try:
+        return number**3
+    except OverflowError:
+        return 10**10
 
 def protectedRoot(number):
     try:
         return math.sqrt(number)
-    except ValueError:
+    except (ZeroDivisionError, ValueError):
         return 1
 
 def protectedLog(number):
@@ -29,4 +35,12 @@ def protectedLog(number):
         return math.log(number)
     except ValueError:
         return 1
+
+def protectedExp(number):
+    try:
+        return math.exp(number)
+    except OverflowError:
+        return 10**10
+    except ValueError:
+        return 0
 
