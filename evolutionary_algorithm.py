@@ -3,6 +3,8 @@ import math
 import random
 import os
 import numpy as np
+import time
+import threading
 
 import numpy
 
@@ -127,23 +129,54 @@ class DynamicOperators():
         print("LLM Setup")
         return client
     
-    def setupDaytona(self):
-        daytonaClient = Daytona()
-        sandbox = daytonaClient.create()
-        print("Sandbox setup")
-        
-        #Install DEAP
-        sandbox.process.exec("python -m pip install deap==1.4.1")
-        print("DEAP installed")
+    #TODO: Define timeout somewhere else
+    def setupDaytona(self, timeout=30, max_attempts=10):
+        for i in range(max_attempts):
+            result = {"sandbox": None}
+            try:
+                result["sandbox"] = None
 
-        #Provide functions for pset
-        with open("gp_primitives.py", "rb") as f:
-            content = f.read()
-            sandbox.fs.upload_file(content, "gp_primitives.py")
+                def initialise_sandbox():
+                    daytonaClient = Daytona()
+                    sandbox = daytonaClient.create(timeout=timeout)
+                    result["sandbox"] = sandbox
+                    print("Sandbox setup")
+                    
+                    #Install DEAP
+                    sandbox.process.exec("python -m pip install deap==1.4.1", timeout=timeout)
+                    print("DEAP installed")
+                    result["sandbox"] = sandbox
 
-        print("Primitives uploaded")
+                    #Provide functions for pset
+                    with open("gp_primitives.py", "rb") as f:
+                        content = f.read()
+                        sandbox.fs.upload_file(content, "gp_primitives.py", timeout=timeout)
 
-        return sandbox
+                    result["sandbox"] = sandbox
+
+                #Uses threads to implement timeout
+                t = threading.Thread(target=initialise_sandbox)
+                t.start()
+                t.join(timeout)
+
+                if t.is_alive():
+                    raise TimeoutError("Operation timed out")
+
+                return result["sandbox"]
+            
+            except TimeoutError:
+                print("Sandbox initialisation failed...")
+
+                #Attempt to delete sandbox
+                try:
+                    result["sandbox"].delete()
+                except Exception:
+                    pass
+
+                #Add delay before retrying
+                time.sleep(2)
+
+        raise RuntimeError("Too many attempts to initialise Daytona sandbox")
 
     def evaluateIndividual(self, individual):
         #TODO: Work for multiple Y values
