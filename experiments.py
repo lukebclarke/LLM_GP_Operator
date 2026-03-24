@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os 
+import random
 
 def get_stats(all_size_avg, all_fit_min):
     #Ensure all runs are of same length (e.g. padding)
@@ -128,6 +129,7 @@ def run_problem_instance(problem_name, params, num_runs=10):
         graph_filepath = directory_name + graph_name
         plot_improvement_graph("Fitness Improvement", fitness_improvement_per_gen, redesign_gens, filepath=graph_filepath)
 
+        #Write to logbook
         log.write("Running standard algorithm...\n")
         log.write("\n")
         log.write(str(standard_est.logbook_))
@@ -150,10 +152,12 @@ def run_problem_instance(problem_name, params, num_runs=10):
     avg_redesigns_cx = sum(crossover_redesigns) / num_runs
     print(f"Number of mutation redesigns: {avg_redesigns_mut}")
     print(f"Number of crossover redesigns: {avg_redesigns_cx}")
+    log.write("\n")
+    log.write("\n")
     log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
     log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
 
-    #Graphs
+    #Save graphs to results folder
     graph_file = f"{directory_name}/average_size.pdf"
     plot_comparison_graph("Average Size", "Standard", "Adaptive Operator", ea_size_avg, ao_size_avg, filepath=graph_file)
     graph_file = f"{directory_name}/min_fitness.pdf"
@@ -162,22 +166,29 @@ def run_problem_instance(problem_name, params, num_runs=10):
     log.close()
 
 def main():
-    dataset_name = 'feynman_II_38_14'
-    num_runs = 1
-
+    #Parameters
+    problem_list = "problems/ground_truth.txt"
+    num_runs = 10
     params = {
-        "pop_size": 20,
-        "gens": 2,
+        "pop_size": 50,
+        "gens": 300,
         "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.7,
+        "cxpb": 0.8,
         "mutpb": 0.1,
-        "k": 3,
+        "k": 5,
         "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
         "verbose": True
     }
 
-    run_problem_instance(dataset_name, params, num_runs=num_runs)
+    #Finds all ground truth datasets
+    with open(problem_list, "r") as f:
+        problems = [line.strip() for line in f if line.strip()]
 
+    #Chooses 10 random problems
+    datasets = random.sample(problems, 10)
+
+    for problem in datasets:
+        run_problem_instance(problem, params, num_runs=num_runs)
     
 if __name__ == "__main__":
     main() 
