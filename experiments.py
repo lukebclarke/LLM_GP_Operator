@@ -170,8 +170,8 @@ def main():
     problem_list = "problems/ground_truth.txt"
     num_runs = 10
     params = {
-        "pop_size": 50,
-        "gens": 300,
+        "pop_size": 300,
+        "gens": 50,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
