@@ -290,7 +290,6 @@ class AdaptiveOperator():
                                 raise Exception("Invalid offspring generated")
 
                         self.operator_design_validated = True
-                        self.prev_design = self.current_operator_module
                         self.current_operator_module = None
 
 
@@ -313,12 +312,14 @@ class AdaptiveOperator():
                 return results["offspring"]
             
             except TimeoutError as e:
+                self.num_retries += 1
                 continue
 
             except Exception as e:
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
 
+        print("Maximum number of attempts exceeded... reverting design")
         #If exceed maximum number of attempts, just use previous design
         if self.prev_design != None:
             self.operator_design_validated = True
@@ -379,6 +380,8 @@ class AdaptiveOperator():
                 #TODO: Reset num_retries at end of generation
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
+
+                self.prev_design = self.current_operator_module
 
                 return offspring
             
