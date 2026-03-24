@@ -67,6 +67,8 @@ class AdaptiveOperator():
         self.timeout=40
         self.max_timeout_retries = 10
 
+        self.prev_design = None
+
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
     
@@ -202,26 +204,32 @@ class AdaptiveOperator():
 
         #Uploads files (uses threads so we can reattempt after timeout)
         for i in range(self.max_timeout_retries):
+            results = {"exception": False}
             try:
 
                 def upload_files():
                     #Uploads files to sandbox
-                    for i in range(self.num_parents):
-                        with open(f"temp/individual{i}.pkl", "rb") as f:
-                            content = f.read()
-                            self.sandbox.fs.upload_file(content, f"individual{i}.pkl")
+                    try:
+                        for i in range(self.num_parents):
+                            with open(f"temp/individual{i}.pkl", "rb") as f:
+                                content = f.read()
+                                self.sandbox.fs.upload_file(content, f"individual{i}.pkl")
 
-                    with open("temp/pset.pkl", "rb") as f:
-                        content = f.read()
-                        self.sandbox.fs.upload_file(content, "pset.pkl")
+                        with open("temp/pset.pkl", "rb") as f:
+                            content = f.read()
+                            self.sandbox.fs.upload_file(content, "pset.pkl")
+
+                    except Exception:
+                        results["exception"] = True
 
                 #Uses threads to implement timeout
                 t = threading.Thread(target=upload_files)
                 t.start()
                 t.join(self.timeout)
 
-                if t.is_alive():
-                    raise TimeoutError("Operation timed out")
+                if t.is_alive() or results["exception"] == True:
+                    results["exception"] = False
+                    raise Exception
 
                 break
 
@@ -254,7 +262,9 @@ class AdaptiveOperator():
                                 raise Exception("Invalid offspring generated")
 
                         self.operator_design_validated = True
+                        self.prev_design = self.current_operator_module
                         self.current_operator_module = None
+
 
                         log = self.sandbox.fs.download_file("error.txt")
                         # print(log.decode("utf-8")) #Prints error log
@@ -281,7 +291,10 @@ class AdaptiveOperator():
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
 
-        raise MaximumNumberRetries(self.num_parents)
+        #If exceed maximum number of attempts, just use previous design
+        self.operator_design_validated = True
+        self.current_operator_module = self.prev_design
+        self.llm_custom_operator_locally(individuals)
     
     def apply_operator(self, individuals):
         """This method should be overwritten in the child class"""
