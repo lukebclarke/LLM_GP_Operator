@@ -236,26 +236,30 @@ class AdaptiveOperator():
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
 
             try:
-                results = {"offspring": []}
+                results = {"offspring": [],
+                           "exception": None}
                 def execute_llm_code():
-                    compile(wrapper_text, "<sandbox>", "exec")
-                
-                    #Execute the code in the sandbox
-                    response = self.sandbox.process.code_run(wrapper_text)
+                    try:
+                        compile(wrapper_text, "<sandbox>", "exec")
+                    
+                        #Execute the code in the sandbox
+                        response = self.sandbox.process.code_run(wrapper_text)
 
-                    #Must convert the pickled results back to desired form
-                    for i in range(self.num_offspring):
-                        results["offspring"].append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
-                        results["offspring"][i] = self.clean_individual(results["offspring"][i])
+                        #Must convert the pickled results back to desired form
+                        for i in range(self.num_offspring):
+                            results["offspring"].append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
+                            results["offspring"][i] = self.clean_individual(results["offspring"][i])
 
-                        if not self.validate_individual(results["offspring"][i]):
-                            raise Exception("Invalid offspring generated")
+                            if not self.validate_individual(results["offspring"][i]):
+                                raise Exception("Invalid offspring generated")
 
-                    self.operator_design_validated = True
-                    self.current_operator_module = None
+                        self.operator_design_validated = True
+                        self.current_operator_module = None
 
-                    log = self.sandbox.fs.download_file("error.txt")
-                    # print(log.decode("utf-8")) #Prints error log
+                        log = self.sandbox.fs.download_file("error.txt")
+                        # print(log.decode("utf-8")) #Prints error log
+                    except Exception:
+                        results["exception"] = True
 
                 #Uses threads to implement timeout
                 t = threading.Thread(target=execute_llm_code)
@@ -264,6 +268,9 @@ class AdaptiveOperator():
 
                 if t.is_alive():
                     raise TimeoutError("Operation timed out")
+                
+                if results["exception"] == True:
+                    raise Exception("Invalid offspring generated")
 
                 return results["offspring"]
             
