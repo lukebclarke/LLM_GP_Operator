@@ -122,13 +122,12 @@ class AdaptiveOperator():
         return individual
     
     def llm_standard_model(self):
-        results = {
-            "code": None,
-            "exception": False
-            }
-        
         for i in range(self.max_timeout_retries):
             try:
+                results = {
+                    "code": None,
+                    "exception": False
+                }
 
                 def get_llm_response():
                     #Uploads files to sandbox
@@ -148,6 +147,7 @@ class AdaptiveOperator():
                         code = response.choices[0].message.content
                     
                         results["code"] = code
+                        results["exception"] = False
                         
                     except Exception:
                         results["exception"] = True
