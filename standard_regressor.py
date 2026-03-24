@@ -204,11 +204,16 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.mstats.register("max", np.max)
         self.fitness_improvements = []
         self.redesign_generations = []
+        self.stats_ = {"fitness_improvements": None}
 
         #Run simple EA
         self.final_pop_, self.logbook_ = algorithms.eaSimple(self.final_pop_, self.toolbox_, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
                                     halloffame=self.hof_, verbose=True)
-                
+        
+        #Finds minimum fitness per generation
+        self.stats_["fitness_improvements"] = [record['fitness']['min'] for record in self.logbook_]
+        self.stats_["fitness_improvements"][0] = np.nan
+        
         self.is_fitted_ = True
         return self
 

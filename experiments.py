@@ -30,14 +30,16 @@ def get_stats(all_size_avg, all_fit_min):
 
     return size_avg_mean, fit_min_mean
 
-def plot_improvement_graph(metric_name, values, redesign_generations, filepath=None):
-    gens = list(range(0, len(values), 1))
+def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, values_alg2, redesign_generations, filepath=None):
+    gens_alg1 = list(range(0, len(values_alg1), 1))
+    gens_alg2 = list(range(0, len(values_alg2), 1))
 
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
-    ax.plot(gens, values) 
+    ax.plot(gens_alg1, values_alg1, label=alg1_label) 
+    ax.plot(gens_alg2, values_alg2, label=alg2_label)
     ax.set_ylim(bottom=0)
-    ax.set_xticks(range(0, len(gens), 5))
+    ax.set_xticks(range(0, max(len(gens_alg1), len(gens_alg2)), 5))
     ax.set_xlabel("Generations")
     ax.set_ylabel(metric_name)
 
@@ -123,11 +125,12 @@ def run_problem_instance(problem_name, params, num_runs=10):
         crossover_redesigns.append(ao_est.stats_["crossover_redesigns"])
 
         redesign_gens = ao_est.stats_["redesign_generations"]
-        fitness_improvement_per_gen = ao_est.stats_["fitness_improvements"]
+        fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
+        fitness_improvement_per_gen_standard = standard_est.stats_["fitness_improvements"]
 
         graph_name = f"/fitness_improvement_run{i}"
         graph_filepath = directory_name + graph_name
-        plot_improvement_graph("Fitness Improvement", fitness_improvement_per_gen, redesign_gens, filepath=graph_filepath)
+        plot_improvement_graph("Fitness Improvement", "Standard", "Adaptive Operator", fitness_improvement_per_gen_standard, fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath)
 
         #Write to logbook
         log.write("Running standard algorithm...\n")
