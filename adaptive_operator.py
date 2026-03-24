@@ -10,6 +10,7 @@ from daytona import CodeRunParams
 import json
 import random
 import pickle
+import threading
 
 from util import clean_llm_output
 from util import pickle_object
@@ -63,6 +64,8 @@ class AdaptiveOperator():
         self.local_skips = 0
 
         self.total_num_redesigns = 0
+        self.timeout=40
+        self.max_timeout_retries = 10
 
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
@@ -197,16 +200,34 @@ class AdaptiveOperator():
             pickle_object(individuals[i], f"individual{i}")
         pickle_object(self.pset, "pset") #TODO: Upload at start
 
-        #Uploads files to sandbox
-        for i in range(self.num_parents):
-            with open(f"temp/individual{i}.pkl", "rb") as f:
-                content = f.read()
-                self.sandbox.fs.upload_file(content, f"individual{i}.pkl")
+        #Uploads files (uses threads so we can reattempt after timeout)
+        for i in range(self.max_timeout_retries):
+            try:
 
-        with open("temp/pset.pkl", "rb") as f:
-            content = f.read()
-            self.sandbox.fs.upload_file(content, "pset.pkl")
-        
+                def upload_files():
+                    #Uploads files to sandbox
+                    for i in range(self.num_parents):
+                        with open(f"temp/individual{i}.pkl", "rb") as f:
+                            content = f.read()
+                            self.sandbox.fs.upload_file(content, f"individual{i}.pkl")
+
+                    with open("temp/pset.pkl", "rb") as f:
+                        content = f.read()
+                        self.sandbox.fs.upload_file(content, "pset.pkl")
+
+                #Uses threads to implement timeout
+                t = threading.Thread(target=upload_files)
+                t.start()
+                t.join(self.timeout)
+
+                if t.is_alive():
+                    raise TimeoutError("Operation timed out")
+
+                break
+
+            except Exception:
+                time.sleep(1)
+            
         #Attempts to execute - redesigns operator if fails
         while self.num_retries < self.max_num_retries: 
             print(f"Number of redesigns: {self.num_retries}")
@@ -215,50 +236,41 @@ class AdaptiveOperator():
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
 
             try:
-                compile(wrapper_text, "<sandbox>", "exec")
+                results = {"offspring": []}
+                def execute_llm_code():
+                    compile(wrapper_text, "<sandbox>", "exec")
+                
+                    #Execute the code in the sandbox
+                    response = self.sandbox.process.code_run(wrapper_text)
+
+                    #Must convert the pickled results back to desired form
+                    for i in range(self.num_offspring):
+                        results["offspring"].append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
+                        results["offspring"][i] = self.clean_individual(results["offspring"][i])
+
+                        if not self.validate_individual(results["offspring"][i]):
+                            raise Exception("Invalid offspring generated")
+
+                    self.operator_design_validated = True
+                    self.current_operator_module = None
+
+                    log = self.sandbox.fs.download_file("error.txt")
+                    # print(log.decode("utf-8")) #Prints error log
+
+                #Uses threads to implement timeout
+                t = threading.Thread(target=execute_llm_code)
+                t.start()
+                t.join(self.timeout)
+
+                if t.is_alive():
+                    raise TimeoutError("Operation timed out")
+
+                return results["offspring"]
             
-                #Execute the code in the sandbox
-                response = self.sandbox.process.code_run(wrapper_text)
-
-                #TODO: Add a timeout - give it 30 seconds to produce code
-
-                #Must convert the pickled results back to desired form
-                offspring = []
-                for i in range(self.num_offspring):
-                    offspring.append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
-                    offspring[i] = self.clean_individual(offspring[i])
-
-                    if not self.validate_individual(offspring[i]):
-                        raise Exception("Invalid offspring generated")
-
-                self.operator_design_validated = True
-                self.current_operator_module = None
-
-                log = self.sandbox.fs.download_file("error.txt")
-                # print(log.decode("utf-8")) #Prints error log
-
-                #TODO: Temp for testing
-                with open("temp/testing_current_remote_design.py", "w") as f:
-                    f.write(f"#Time execution: {time.time()}\n")
-                    f.write(self.operator_design)
-
-                return offspring
-            
-            #TODO: Better error handling
-            except SyntaxError as e:
-                # print("Generated code has a syntax error:")
-                # print(e)
-                # print("Line:", e.lineno)
-                # print("Text:", e.text)
-
-                #If an error occurs, attempt to redesign the LLM function
-                self.redesign_operator()
+            except TimeoutError as e:
+                continue
 
             except Exception as e:
-                # error = self.sandbox.fs.download_file("error.txt")
-                # print("Remote error occured:")
-                # print(error.decode("utf-8")) #Prints error log
-
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
 
