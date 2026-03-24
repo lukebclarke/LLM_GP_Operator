@@ -54,6 +54,27 @@ def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, val
     else:
         plt.show()
 
+def plot_improvement_graph_solo(metric_name, values, redesign_generations, filepath=None):
+    gens = list(range(0, len(values), 1))
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    ax.plot(gens, values) 
+    ax.set_ylim(bottom=0)
+    ax.set_xticks(range(0, len(gens), 5))
+    ax.set_xlabel("Generations")
+    ax.set_ylabel(metric_name)
+
+    #Adds references to redesign generations
+    for gen in redesign_generations:
+        ax.axvline(x=gen, linestyle='--')
+
+    if filepath:
+        fig.savefig(filepath, dpi=300, bbox_inches='tight')
+        plt.close()
+    else:
+        plt.show()
+
 
 def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2, filepath=None):
     xdata1 = list(range(0, len(metric_values1), 1))
@@ -132,6 +153,7 @@ def run_problem_instance(problem_name, params, num_runs=10):
         graph_name = f"/fitness_improvement_run{i}"
         graph_filepath = directory_name + graph_name
         plot_improvement_graph("Fitness Improvement", "Standard", "Adaptive Operator", fitness_improvement_per_gen_standard, fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath)
+        plot_improvement_graph_solo("Fitness Improvement", fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath + "_solo")
 
         #Write to logbook
         log.write("Running standard algorithm...\n")
