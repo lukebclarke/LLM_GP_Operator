@@ -320,9 +320,18 @@ class AdaptiveOperator():
                 self.redesign_operator()
 
         #If exceed maximum number of attempts, just use previous design
-        self.operator_design_validated = True
-        self.current_operator_module = self.prev_design
-        self.llm_custom_operator_locally(individuals)
+        if self.prev_design != None:
+            self.operator_design_validated = True
+            self.current_operator_module = self.prev_design
+            return self.llm_custom_operator_locally(individuals)
+        #If no previous design, just use uniform mutation
+        elif self.prev_design == None and self.num_parents == 1:
+            ind = gp.mutUniform(individuals[0], expr=self.toolbox.expr_mut, pset=self.pset)
+            return ind
+        #If no previous design, just use one point crossover
+        elif self.prev_design == None and self.num_parents == 2:
+            ind1, ind2 = gp.cxOnePoint(individuals[0], individuals[1])
+            return ind1, ind2
     
     def apply_operator(self, individuals):
         """This method should be overwritten in the child class"""

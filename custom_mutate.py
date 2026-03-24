@@ -69,6 +69,6 @@ class CustomMutate(AdaptiveOperator):
         #If the design has already been validated at least 3 times, can execute locally
         elif self.operator_design != None and self.operator_design_validated == True:
             #Ensure design is saved locally
-            offspring = self.llm_custom_operator_locally([individual])[0],
+            offspring = self.llm_custom_operator_locally([individual])
 
             return offspring[0],
