@@ -42,6 +42,7 @@ def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, val
     ax.set_xticks(range(0, max(len(gens_alg1), len(gens_alg2)), 5))
     ax.set_xlabel("Generations")
     ax.set_ylabel(metric_name)
+    ax.legend()
 
     #Adds references to redesign generations
     for gen in redesign_generations:

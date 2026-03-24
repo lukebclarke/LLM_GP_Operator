@@ -211,9 +211,14 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
                                     halloffame=self.hof_, verbose=True)
         
         #Finds minimum fitness per generation
-        self.stats_["fitness_improvements"] = [record['fitness']['min'] for record in self.logbook_]
-        self.stats_["fitness_improvements"][0] = np.nan
-        
+        fitness_per_gens = self.logbook_.chapters["fitness"].select("min")
+        fitness_improvements = [np.nan]
+        for i in range(1, len(fitness_per_gens)):
+            prev_gen_fitness = fitness_per_gens[i-1]
+            current_gen_fitness = fitness_per_gens[i]
+            fitness_improvements.append(prev_gen_fitness - current_gen_fitness)
+        self.stats_["fitness_improvements"] = fitness_improvements
+
         self.is_fitted_ = True
         return self
 
