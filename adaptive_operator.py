@@ -122,21 +122,49 @@ class AdaptiveOperator():
         return individual
     
     def llm_standard_model(self):
-        response = self.llm_client.chat.completions.create(
-                model=self.llm_model,
-                temperature=0.80,
-                messages=[
-                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
-                {
-                    "role": "user",
-                    "content": self.llm_prompt
-                }
-                ],
-            )
-                
-        code = response.choices[0].message.content
+        results = {
+            "code": None,
+            "exception": False
+            }
         
-        return code
+        for i in range(self.max_timeout_retries):
+            try:
+
+                def get_llm_response():
+                    #Uploads files to sandbox
+                    try:
+                        response = self.llm_client.chat.completions.create(
+                        model=self.llm_model,
+                        temperature=0.80,
+                        messages=[
+                        {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
+                        {
+                            "role": "user",
+                            "content": self.llm_prompt
+                        }
+                        ],
+                    )
+                        
+                        code = response.choices[0].message.content
+                    
+                        results["code"] = code
+                        
+                    except Exception:
+                        results["exception"] = True
+
+                #Uses threads to implement timeout
+                t = threading.Thread(target=get_llm_response)
+                t.start()
+                t.join(self.timeout)
+
+                if t.is_alive() or results["exception"] == True:
+                    results["exception"] = False
+                    raise Exception
+
+                return results["code"]
+
+            except Exception:
+                time.sleep(1)
     
     def llm_reasoning_model(self):
         response = self.llm_client.chat.completions.create(

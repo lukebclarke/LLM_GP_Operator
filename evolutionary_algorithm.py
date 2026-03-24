@@ -67,8 +67,8 @@ class DynamicOperators():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=5)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=3)
+        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=(0.1*n))
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=10, max_local_skips=(0.1*n))
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
