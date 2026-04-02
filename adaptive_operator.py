@@ -319,7 +319,9 @@ class AdaptiveOperator():
                 #If an error occurs, attempt to redesign the LLM function
                 self.redesign_operator()
 
-        print("Maximum number of attempts exceeded... reverting design")
+        print("Maximum number of attempts exceeded...")
+        raise MaximumNumberRetries(self.num_parents)
+    
         #If exceed maximum number of attempts, just use previous design
         if self.prev_design != None:
             self.operator_design_validated = True
@@ -333,6 +335,8 @@ class AdaptiveOperator():
         elif self.prev_design == None and self.num_parents == 2:
             ind1, ind2 = gp.cxOnePoint(individuals[0], individuals[1])
             return ind1, ind2
+        else:
+            raise Exception("Fatal error")
     
     def apply_operator(self, individuals):
         """This method should be overwritten in the child class"""
@@ -381,7 +385,7 @@ class AdaptiveOperator():
                 #Only once the module has been operated locally, do we accept the design
                 self.num_retries = 0
 
-                self.prev_design = self.current_operator_module
+                # self.prev_design = self.current_operator_module
 
                 return offspring
             

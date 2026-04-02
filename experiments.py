@@ -1,5 +1,6 @@
 from adaptive_regressor import AdaptiveRegressor
 from standard_regressor import StandardRegressor
+from adaptive_operator import MaximumNumberRetries
 
 from pmlb import fetch_data
 import matplotlib.pyplot as plt
@@ -133,8 +134,15 @@ def run_problem_instance(problem_name, params, num_runs=10):
         standard_est = StandardRegressor(**params)
         standard_est.fit(X, Y)
         
-        #Run adaptive evolutionary algorithm without re-initialising sanbdox
-        ao_est.fit(X, Y)
+        for i in range(10):
+            #Run adaptive evolutionary algorithm without re-initialising sanbdox
+            try:
+                ao_est = AdaptiveRegressor(**params)
+                ao_est.fit(X, Y)
+                ao_est.shutdown_sandbox()
+                break
+            except MaximumNumberRetries:
+                continue
 
         #Update statistics
         all_size_avg_ea.append(standard_est.logbook_.chapters["size"].select("avg"))
@@ -167,8 +175,6 @@ def run_problem_instance(problem_name, params, num_runs=10):
         log.write("\n")
         log.write("============================================")
 
-    ao_est.shutdown_sandbox()
-
     #Gets statistics across all runs
     ea_size_avg, ea_fit_min = get_stats(all_size_avg_ea, all_fit_min_ea)
     ao_size_avg, ao_fit_min = get_stats(all_size_avg_ao, all_fit_min_ao)
@@ -194,10 +200,10 @@ def run_problem_instance(problem_name, params, num_runs=10):
 def main():
     #Parameters
     problem_list = "problems/ground_truth.txt"
-    num_runs = 10
+    num_runs = 1
     params = {
-        "pop_size": 300,
-        "gens": 50,
+        "pop_size": 250,
+        "gens": 40,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
