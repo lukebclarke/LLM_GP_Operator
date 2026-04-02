@@ -1,4 +1,4 @@
-from adaptive_regressor import AdaptiveRegressor
+from adaptive_operators.gp_model import AdaptiveRegressor
 
 from deap import gp, base, creator
 from sympy import sympify
@@ -15,20 +15,6 @@ import math
 from functools import partial
 import random
 import inspect
-
-
-#TODO: Hyperparameter tuning by wrapping in sklearn CV class
-
-est = AdaptiveRegressor(
-    pop_size=200,
-    gens=40,
-    max_time=8.0*60.0*60.0,
-    cxpb=0.7,
-    mutpb=0.1,
-    k=3,
-    functions=["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-    verbose=True
-)
 
 def get_string(tree, index=0, variable_mapping={}):
     """  
@@ -167,27 +153,16 @@ def complexity(est):
     
     return len(best_model)
 
-def get_testing_data():
-    X = np.array([])
-    Y = np.array([])
-    for i in range(500):
-        x = random.uniform(-1, 1)
-        y = (x**3) + (x**2) + (x) + 1
-        X = np.append(X, x)
-        Y = np.append(Y, y)
 
-    X = X.reshape(-1, 1)
-    Y = Y.reshape(-1, 1)
+#TODO: Hyperparameter tuning by wrapping in sklearn CV class
 
-    X = pd.DataFrame(X, columns=['X'])
-    Y = pd.DataFrame(Y, columns=['Y'])
-
-    return X, Y
-
-def test_model():
-    X, Y = get_testing_data()
-    est.fit(X, Y)
-    print(model(est, X))
-
-
-test_model()
+est = AdaptiveRegressor(
+    pop_size=200,
+    gens=40,
+    max_time=8.0*60.0*60.0,
+    cxpb=0.7,
+    mutpb=0.1,
+    k=3,
+    functions=["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+    verbose=True
+)

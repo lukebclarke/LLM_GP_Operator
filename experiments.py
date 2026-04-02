@@ -1,6 +1,6 @@
-from adaptive_regressor import AdaptiveRegressor
-from standard_regressor import StandardRegressor
-from adaptive_operator import MaximumNumberRetries
+from adaptive_operators.gp_model import AdaptiveRegressor
+from standard_operators.gp_model import StandardRegressor
+from adaptive_operators.base_operator import MaximumNumberRetries
 
 from pmlb import fetch_data
 import matplotlib.pyplot as plt
@@ -128,12 +128,8 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
     for i in range(num_runs):
         print("Run number: ", i)
-
-        #Run standard evolutionary algorithm
-        print("Running standard EA")
-        standard_est = StandardRegressor(**params)
-        standard_est.fit(X, Y)
         
+        #TODO: Prevent this from crashing altogether
         for i in range(10):
             #Run adaptive evolutionary algorithm without re-initialising sanbdox
             try:
@@ -143,6 +139,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
                 break
             except MaximumNumberRetries:
                 continue
+
+        #Run standard evolutionary algorithm
+        print("Running standard EA")
+        standard_est = StandardRegressor(**params)
+        standard_est.fit(X, Y)
 
         #Update statistics
         all_size_avg_ea.append(standard_est.logbook_.chapters["size"].select("avg"))

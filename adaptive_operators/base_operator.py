@@ -34,7 +34,7 @@ class MaximumNumberRetries(Exception):
     def __init__(self, num_parents):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
-class AdaptiveOperator():
+class BaseOperator():
     def __init__(self, client, sandbox, pset, toolbox, custom_creator, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
         self.llm_client = client
         self.llm_model = model
@@ -321,22 +321,6 @@ class AdaptiveOperator():
 
         print("Maximum number of attempts exceeded...")
         raise MaximumNumberRetries(self.num_parents)
-    
-        #If exceed maximum number of attempts, just use previous design
-        if self.prev_design != None:
-            self.operator_design_validated = True
-            self.current_operator_module = self.prev_design
-            return self.llm_custom_operator_locally(individuals)
-        #If no previous design, just use uniform mutation
-        elif self.prev_design == None and self.num_parents == 1:
-            ind = gp.mutUniform(individuals[0], expr=self.toolbox.expr_mut, pset=self.pset)
-            return ind
-        #If no previous design, just use one point crossover
-        elif self.prev_design == None and self.num_parents == 2:
-            ind1, ind2 = gp.cxOnePoint(individuals[0], individuals[1])
-            return ind1, ind2
-        else:
-            raise Exception("Fatal error")
     
     def apply_operator(self, individuals):
         """This method should be overwritten in the child class"""

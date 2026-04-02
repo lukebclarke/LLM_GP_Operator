@@ -19,9 +19,9 @@ from deap import gp
 
 #Custom Classes
 import gp_primitives
-from evolutionary_algorithm import DynamicOperators
+from adaptive_operators.adaptive_gp import AdaptiveGP
 
-class StandardRegressor(BaseEstimator, RegressorMixin):
+class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     """A scikit-learn regressor model for an evolutionary algorithm with adaptive operators
 
     Parameters
@@ -94,7 +94,15 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.hof_ = None
         self.stats_ = None
         self.logbook_ = None
-        self.toolbox_ = None
+
+        self.algorithms_ = None
+
+    def shutdown_sandbox(self):
+        if self.algorithms_:
+            self.algorithms_.shutdown_sandbox()
+            return True
+        
+        return False
 
     def create_pset(self, n_features):
         pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
@@ -124,36 +132,6 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
 
         return pset
-    
-    def create_toolbox(self, pset, X, Y):
-        # Defines 'toolbox' functions we can use to create and evaluate individuals
-        toolbox = base.Toolbox() 
-        toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
-        toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr) #Creates individuals
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual) #Creates populations
-        toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
-        toolbox.register("evaluate", self.evaluateIndividual, toolbox, X, Y)
-        toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
-        toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
-        toolbox.register("mate", gp.cxOnePoint)
-        toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-
-        #Defines limits for genetic operations
-        toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
-        toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
-
-        return toolbox
-    
-    def evaluateIndividual(self, toolbox, X, Y, individual):
-        #TODO: Work for multiple Y values
-        #Transform the tree expression in a callable function
-        func = toolbox.compile(expr=individual) 
-
-        #Evaluate the mean squared error between the expression and the real function
-        sqerrors = np.array([(func(*x) - y)**2 for x, y in zip(X, Y)])
-        sqerrors = sqerrors.flatten()
-
-        return math.fsum(sqerrors) / len(X),
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
@@ -185,39 +163,17 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         #Gets problem set
         pset = self.create_pset(n_features)
 
-        #TODO: Maybe move this somewhere else - we pass the creator? 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
-        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
+        #If we have already initialised regressor, don't load up operators class again (sandbox takes long time to initialise)
+        if self.algorithms_ == None:
+            self.algorithms_ = AdaptiveGP(self.pop_size, pset, X, y, self.k)
+        #If we have already run algorithm, reset all variables
+        else:
+            self.final_pop_ = None
+            self.hof_ = None
+            self.stats_ = None
+            self.logbook_ = None
 
-        self.toolbox_ = self.create_toolbox(pset, X, y)
-
-        self.final_pop_ = self.toolbox_.population(n=self.pop_size)
-        self.hof_ = tools.HallOfFame(1) #We track 1 best solution
-
-        #Track statistics
-        stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
-        stats_size = tools.Statistics(len)
-        self.mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
-        self.mstats.register("avg", np.mean)
-        self.mstats.register("std", np.std)
-        self.mstats.register("min", np.min)
-        self.mstats.register("max", np.max)
-        self.fitness_improvements = []
-        self.redesign_generations = []
-        self.stats_ = {"fitness_improvements": None}
-
-        #Run simple EA
-        self.final_pop_, self.logbook_ = algorithms.eaSimple(self.final_pop_, self.toolbox_, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
-                                    halloffame=self.hof_, verbose=True)
-        
-        #Finds minimum fitness per generation
-        fitness_per_gens = self.logbook_.chapters["fitness"].select("min")
-        fitness_improvements = [np.nan]
-        for i in range(1, len(fitness_per_gens)):
-            prev_gen_fitness = fitness_per_gens[i-1]
-            current_gen_fitness = fitness_per_gens[i]
-            fitness_improvements.append(prev_gen_fitness - current_gen_fitness)
-        self.stats_["fitness_improvements"] = fitness_improvements
+        self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
 
         self.is_fitted_ = True
         return self
@@ -238,7 +194,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         if check_is_fitted(self):
             #Finds best solution, and compiles it into an equation
             best_solution = self.hof_[0]
-            func = self.toolbox_.compile(expr=best_solution) 
+            func = self.toolbox.compile(expr=best_solution) 
 
         #TODO: Check line
         # X = self._validate_params(X)

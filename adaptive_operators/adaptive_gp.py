@@ -26,18 +26,15 @@ from together import Together
 from daytona import Daytona
 import subprocess
 
-
-
 #API Keys
 from dotenv import load_dotenv
 
 #Files
-from custom_mutate import CustomMutate
-from custom_crossover import CustomCrossover
+from adaptive_operators.custom_mutation import CustomMutation
+from adaptive_operators.custom_crossover import CustomCrossover
 
-#TODO: Rename/refactor class
 #TODO: Define max num retires in here
-class DynamicOperators():
+class AdaptiveGP():
     def __init__(self, n, pset, X, Y, k=2):
         self.n = n
         self.pset = pset
@@ -51,14 +48,14 @@ class DynamicOperators():
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
         creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
-        # Defines 'toolbox' functions we can use to create and evaluate individuals
+        #Defines 'toolbox' functions we can use to create and evaluate individuals
         self.toolbox = base.Toolbox() 
         self.toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
         self.toolbox.register("individual", tools.initIterate, creator.Individual, self.toolbox.expr) #Creates individuals
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual) #Creates populations
         self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
         
-        # Defines genetic operators
+        #Defines genetic operators
         self.client = self.setupLLM() #Custom operators require LLM input
         self.sandbox = self.setupDaytona()
 
@@ -67,7 +64,7 @@ class DynamicOperators():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutate(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
+        self.mutator = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
         self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
 
         #Registers custom mutation + crossover methods
@@ -96,26 +93,6 @@ class DynamicOperators():
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
         self.gens_since_improvement = 0
         self.prev_min_fitness = np.inf
-
-    def reset_state(self):
-        #Used for when algorithms are run multiple times
-        #TODO: Delete this?
-        self.pop = self.toolbox.population(n=self.n)
-        self.hof = tools.HallOfFame(1) #We track 1 best solution
-        self.fitness_improvements = []
-        self.gens_since_improvement = 0
-        self.prev_min_fitness = np.inf
-        self.mutator.reset_operator()
-        self.custom_crossover.reset_operator()
-
-        #Resets statistics - TODO: not sure if needed
-        stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
-        stats_size = tools.Statistics(len)
-        self.mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
-        self.mstats.register("avg", numpy.mean)
-        self.mstats.register("std", numpy.std)
-        self.mstats.register("min", numpy.min)
-        self.mstats.register("max", numpy.max)
 
     def setupLLM(self):
         #Defines LLM Client for custom genetic operators
@@ -203,15 +180,6 @@ class DynamicOperators():
 
         return stats
 
-    def runSimpleEA(self):
-        self.reset_state()
-
-        # Run GP - Simple Evolutionary Algorithm
-        pop, log = algorithms.eaSimple(self.pop, self.toolbox, 0.5, 0.1, 40, stats=self.mstats,
-                                    halloffame=self.hof, verbose=True)
-                
-        return pop, log, self.hof
-        
     def check_stagnation(self, current_fitness, gen_num):
         #There has been an improvement
         self.gens_since_improvement += 1
@@ -236,8 +204,6 @@ class DynamicOperators():
             raise Exception("Error tracking fitnesses")
     
     def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
-        self.reset_state()
-
         logbook = tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
 

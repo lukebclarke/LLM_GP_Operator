@@ -7,14 +7,14 @@ from deap import gp
 from daytona import Daytona
 from daytona import CodeRunParams
 
-from adaptive_operator import AdaptiveOperator
+from adaptive_operators.base_operator import BaseOperator
 
 import textwrap 
 import os
 import sys
 import inspect
 
-class CustomCrossover(AdaptiveOperator):
+class CustomCrossover(BaseOperator):
     def __init__(self, client, sandbox, pset, toolbox, custom_creator, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
         #Crossover operators have 2 parents and 2 offspring
         super().__init__(client, sandbox, pset, toolbox, custom_creator, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
