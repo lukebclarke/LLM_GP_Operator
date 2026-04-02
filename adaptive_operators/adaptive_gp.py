@@ -16,6 +16,8 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+from util import pickle_object
+
 #Visualisation
 import pygraphviz as pgv
 
@@ -33,7 +35,6 @@ from dotenv import load_dotenv
 from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
 
-#TODO: Define max num retires in here
 class AdaptiveGP():
     def __init__(self, n, pset, X, Y, k=2):
         self.n = n
@@ -128,6 +129,12 @@ class AdaptiveGP():
                     with open("gp_primitives.py", "rb") as f:
                         content = f.read()
                         sandbox.fs.upload_file(content, "gp_primitives.py", timeout=timeout)
+
+                    #Upload Pset
+                    pickle_object(self.pset, "pset")
+                    with open("temp/pset.pkl", "rb") as f:
+                        content = f.read()
+                        sandbox.fs.upload_file(content, "pset.pkl")
 
                     result["sandbox"] = sandbox
 

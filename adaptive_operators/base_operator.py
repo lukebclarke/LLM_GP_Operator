@@ -228,8 +228,7 @@ class BaseOperator():
         #Pickles objects - enables transfer to sandbox environment
         for i in range(self.num_parents):
             pickle_object(individuals[i], f"individual{i}")
-        pickle_object(self.pset, "pset") #TODO: Upload at start
-
+        
         #Uploads files (uses threads so we can reattempt after timeout)
         for i in range(self.max_timeout_retries):
             results = {"exception": False}
@@ -242,10 +241,6 @@ class BaseOperator():
                             with open(f"temp/individual{i}.pkl", "rb") as f:
                                 content = f.read()
                                 self.sandbox.fs.upload_file(content, f"individual{i}.pkl")
-
-                        with open("temp/pset.pkl", "rb") as f:
-                            content = f.read()
-                            self.sandbox.fs.upload_file(content, "pset.pkl")
 
                     except Exception:
                         results["exception"] = True

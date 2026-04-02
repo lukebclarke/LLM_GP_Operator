@@ -19,7 +19,6 @@ from deap import gp
 
 #Custom Classes
 import gp_primitives
-from adaptive_operators.adaptive_gp import AdaptiveGP
 
 class StandardRegressor(BaseEstimator, RegressorMixin):
     """A scikit-learn regressor model for an evolutionary algorithm with adaptive operators
