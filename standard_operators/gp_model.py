@@ -246,7 +246,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         Returns:
             ndarray, shape (n_samples,): Returns an array of values calculated from the best evolved solution
         """
-        if check_is_fitted(self):
+        if self.is_fitted_:
             #Finds best solution, and compiles it into an equation
             best_solution = self.hof_[0]
             func = self.toolbox_.compile(expr=best_solution) 

@@ -28,50 +28,23 @@ from together import Together
 from daytona import Daytona
 import subprocess
 
-#API Keys
-from dotenv import load_dotenv
-
 #Files
 from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
 
 class AdaptiveGP():
-    def __init__(self, n, pset, X, Y, k=2, timeout=20):
+    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, timeout=20):
         self.n = n
         self.pset = pset
+        self.toolbox = toolbox
         self.X = X
         self.Y = Y
         self.timeout = timeout
 
-        #Loads in environment variables
-        load_dotenv()
-
-        #Defines 'toolbox' functions we can use to create and evaluate individuals
-        self.toolbox = base.Toolbox() 
-        self.toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
-        self.toolbox.register("individual", tools.initIterate, creator.Individual, self.toolbox.expr) #Creates individuals
-        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual) #Creates populations
-        self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
-        
-        #Defines genetic operators
-        self.client = self.setup_llm() #Custom operators require LLM input
-        self.sandbox = self.setup_daytona()
-
-        self.toolbox.register("evaluate", self.evaluate_individual)
-        self.toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
-        self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
-
-        #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
-
-        #Registers custom mutation + crossover methods
-        self.toolbox.register("mate", self.custom_crossover.crossover)
-        self.toolbox.register("mutate", self.mutator.mutate) 
-
-        #Defines limits for genetic operations
-        self.toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17)) #Limits height of tree
-        self.toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
+        self.custom_mutate = custom_mutate
+        self.custom_crossover = custom_crossover
+        self.client = client
+        self.sandbox = sandbox
 
         #Initialises population
         self.pop = self.toolbox.population(n=n)
@@ -92,115 +65,6 @@ class AdaptiveGP():
         self.gens_since_improvement = 0
         self.prev_min_fitness = np.inf
 
-    def setup_llm(self):
-        """Sets up Together LLM client
-
-        Raises:
-            Exception: API Key not found in .env file
-
-        Returns:
-            Together: The Together LLM client
-        """
-        #Defines LLM Client for custom genetic operators
-        api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
-
-        if api_key is None:
-            raise Exception("Together API key not found")
-
-        client = Together(api_key=api_key)
-
-        return client
-    
-    def initialise_sandbox_instance(self, result):
-        """Sets up sandbox - to be used in threading context
-
-        Args:
-            result (dict): The dictionary used to store results. 'sandbox' provides access to the Daytona sandbox.
-            timeout (float): The number 
-        """
-        #Create Daytona sandbox client
-        daytonaClient = Daytona()
-        sandbox = daytonaClient.create(timeout=self.timeout)
-        result["sandbox"] = sandbox
-        print("Sandbox setup")
-        
-        #Install DEAP
-        sandbox.process.exec("python -m pip install deap==1.4.1", timeout=self.timeout)
-        print("DEAP installed")
-        result["sandbox"] = sandbox
-
-        #Provide functions for pset
-        with open("gp_primitives.py", "rb") as f:
-            content = f.read()
-            sandbox.fs.upload_file(content, "gp_primitives.py", timeout=self.timeout)
-
-        #Upload Pset
-        pickle_object(self.pset, "pset")
-        with open("temp/pset.pkl", "rb") as f:
-            content = f.read()
-            sandbox.fs.upload_file(content, "pset.pkl")
-
-        result["sandbox"] = sandbox
-    
-    def setup_daytona(self, max_attempts=10):
-        """Attempts to setup Daytona sandbox, retrying if it fails initialisation.
-
-        Args:
-            max_attempts (int, optional): The number of attempts to retry before returning RuntimeError. Defaults to 10.
-
-        Raises:
-            RuntimeError: Raised if sandbox is reinitialised too many times
-
-        Returns:
-            Daytona: Daytona sandbox client
-        """
-        for i in range(max_attempts):
-            result = {"sandbox": None}
-            try:
-                result["sandbox"] = None
-
-                #Uses threads to implement timeout
-                t = threading.Thread(target=self.initialise_sandbox_instance, args=(result,))
-                t.start()
-                t.join(self.timeout)
-
-                if t.is_alive() or result["sandbox"] == None:
-                    raise TimeoutError("Operation timed out")
-
-                print(type(result["sandbox"]))
-                return result["sandbox"]
-            
-            except TimeoutError:
-                print("Sandbox initialisation failed...")
-
-                #Attempt to delete sandbox
-                try:
-                    result["sandbox"].delete()
-                except Exception:
-                    #Add delay before retrying
-                    time.sleep(1)
-
-        raise RuntimeError("Too many attempts to initialise Daytona sandbox")
-
-    def evaluate_individual(self, individual):
-        """Calculates mean squared error (MSE) for individual/program (i.e. calculates fitness)
-
-        Args:
-            individual (gp.Individual): The individual to evaluate
-
-        Returns:
-            float: The MSE value
-        """
-        #TODO: Work for multiple Y values
-        #Transform the tree expression in a callable function
-        func = self.toolbox.compile(expr=individual) 
-
-        #Evaluate the mean squared error between the expression and the real function
-        sqerrors = np.array([(func(*x) - y)**2 for x, y in zip(self.X, self.Y)])
-        sqerrors = sqerrors.flatten()
-
-        return math.fsum(sqerrors) / len(self.X),
-
     def get_stats(self):
         """Returns stats about the algorithm instance
 
@@ -209,7 +73,7 @@ class AdaptiveGP():
         """
         stats = {}
         stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
-        stats["mutation_redesigns"] = self.mutator.total_num_redesigns
+        stats["mutation_redesigns"] = self.custom_mutate.total_num_redesigns
 
         #Adds extra generation at start with no value
         self.fitness_improvements[0] = np.nan
@@ -246,7 +110,7 @@ class AdaptiveGP():
         elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement >= self.k:
             print("Stagnating.... Redesigning...")
             self.custom_crossover.redesign_operator()
-            self.mutator.redesign_operator()
+            self.custom_mutate.redesign_operator()
             self.redesign_generations.append(gen_num)
             self.gens_since_improvement = 0
         else:
@@ -327,7 +191,7 @@ class AdaptiveGP():
             history["min_size"].append(float(record["size"]["min"]))
 
             # Updates LLM prompt with updated logbook
-            self.mutator.update_llm_prompt(history)
+            self.custom_mutate.update_llm_prompt(history)
             self.custom_crossover.update_llm_prompt(history)
 
             #Solution found - early stopping
@@ -335,20 +199,15 @@ class AdaptiveGP():
                 break
 
             #Each generation, reset the number of local skips each operator is allowed
-            self.mutator.local_skips = 0
+            self.custom_mutate.local_skips = 0
             self.custom_crossover.local_skips = 0
 
             #Resets number of attempts
-            self.mutator.num_retries = 0
+            self.custom_mutate.num_retries = 0
             self.custom_crossover.num_retries = 0
 
             self.check_stagnation(min_fitness, gen)
 
         ao_stats = self.get_stats()
-        return self.pop, logbook, self.hof, ao_stats
         
-    def shutdown_sandbox(self):
-        """
-        Deletes/shutdowns the sandbox
-        """
-        self.sandbox.delete()
+        return self.pop, logbook, self.hof, ao_stats
