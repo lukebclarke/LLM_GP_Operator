@@ -93,6 +93,12 @@ class AdaptiveGP():
         return stats
 
     def update_operator_history(self, current_gen, logbook):
+        """Updates the record of previous operator designs, associating a score with the current operators
+
+        Args:
+            current_gen (int): The generation number we are currently on
+            logbook (tools.Logbook): The logbook containing the history of the algorithm
+        """
         current_mutator_design = self.custom_mutate.operator_design
         current_crossover_design = self.custom_crossover.operator_design
 
@@ -145,6 +151,24 @@ class AdaptiveGP():
         #Adds design + corresponding score to history
         self.mutation_designs.append((current_mutator_design, mutator_score))
         self.crossover_designs.append((current_crossover_design, crossover_score))
+
+    def get_operator_design(self):
+        #Split lists into separate lists of designs and scores
+        mutation_designs, mutation_scores = zip(*self.mutation_designs)
+        crossover_designs, crossover_scores = zip(*self.crossover_designs)
+
+        total_mut_scores = sum(mutation_scores)
+        total_cross_scores = sum(crossover_scores)
+
+        #Calculate probability of each design (based on score)
+        mutation_probs = [score / total_mut_scores for score in mutation_scores]
+        crossover_probs = [score / total_cross_scores for score in crossover_scores]
+
+        #Chooses design proportionally based on associated operator score
+        mutation_design = random.choices(mutation_designs, weights=mutation_probs, k=1)[0]
+        crossover_design = random.choices(crossover_designs, weights=crossover_probs, k=1)[0]
+
+        return mutation_design, crossover_design
 
     def check_stagnation(self, current_fitness, gen_num, logbook):
         """Checks whether the design of the algorithm is stagnating, and redesigns if so
