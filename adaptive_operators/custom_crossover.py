@@ -35,8 +35,14 @@ class CustomCrossover(BaseOperator):
         sys.path.append('/temp')
 
     def apply_operator(self, individuals):
-        # offspring = self.current_operator_module.crossover_individuals(individuals[0], individuals[1], self.pset)
+        """Applies custom crossover locally to individuals
 
+        Args:
+            individuals (list): List of gp.Individual objects
+
+        Returns:
+            list: List of the offspring of type gp.Individual
+        """
         #Sets up environment
         global_env = {
             "individual1": individuals[0],
@@ -51,10 +57,17 @@ class CustomCrossover(BaseOperator):
         return [global_env["offspring1"], global_env["offspring2"]]
 
     def crossover(self, individual1, individual2):
+        """Determines which crossover operator to apply, and applies it
+
+        Args:
+            individual1 (gp.Individual): The first parent
+            individual2 (gp.Individual): The second parent
+
+        Returns:
+            gp.Individual, gp.Individual: The pair of offspring
+        """
         #By default, use one point crossover
-        #TODO: REVERT THIS BACK
         if self.operator_design == None:
-        # if True:
             ind1, ind2 = gp.cxOnePoint(individual1, individual2)
             return ind1, ind2
         #Validates the design by using Daytona to execute the code

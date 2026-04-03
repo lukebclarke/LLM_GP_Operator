@@ -11,36 +11,40 @@ import sys
 
 from daytona.common.errors import DaytonaNotFoundError
 
-def get_individual_from_string(individual_string, pset):
-    individual = gp.PrimitiveTree.from_string(individual_string, pset)
-
-    return individual
-
-def get_string_from_individual(individual_obj):
-    ind_str = str(individual_obj)
-
-    return ind_str
-
 def pickle_object(obj, file_name):
+    """Pickles an object and downloads to /temp folder
+
+    Args:
+        obj (Any): Object to pickle
+        file_name (string): The name of the file to upload pickled object to
+    """
     with open(f"temp/{file_name}.pkl", "wb") as f:
         pickle.dump(obj, f)
 
 def unpickle_object(file_name):
+    """Finds object in /temp folder, and unpickles it
+
+    Args:
+        file_name (string): The name of the file storing the pickled object
+
+    Returns:
+        Any: Unpickled object
+    """
     with open(f"temp/{file_name}.pkl", "rb") as f:
         obj = pickle.load(f)
 
     return obj
 
 def unpickle_daytona_file(file_name, sandbox):
-    # # List files in a directory
-    # files = sandbox.fs.list_files("")
+    """Unpickles an object remotely stored, and deletes file afterwards
 
-    # for file in files:
-    #     print(f"Name: {file.name}")
-    #     print(f"Is directory: {file.is_dir}")
-    #     print(f"Size: {file.size}")
-    #     print(f"Modified: {file.mod_time}")
+    Args:
+        file_name (string): The name of the file stored in the Daytona sandbox
+        sandbox (Daytona): Sandbox
 
+    Returns:
+        Any: The unpickled object
+    """
     content = sandbox.fs.download_file(f"{file_name}.pkl")
 
     with open("temp/new_individual.pkl", "wb") as f:
@@ -52,11 +56,21 @@ def unpickle_daytona_file(file_name, sandbox):
     try:
         sandbox.fs.delete_file(f"{file_name}.pkl")
     except DaytonaNotFoundError:
-        pass #File does not exist (TODO - Better way of handling this?)
+        #File does not exist
+        pass
 
     return obj
 
 def clean_llm_output(output):
+    """Cleans LLM output, extracting the code from it
+
+    Args:
+        output (string): The entire LLM output
+
+    Returns:
+        string: The pure code from the LLM output
+    """
+    #Extracts code
     output = output.strip()
     output = output.replace("```", "")
     output = output.replace("python", "")
@@ -66,36 +80,3 @@ def clean_llm_output(output):
         generated_code = generated_code.replace("mutuated_individual", "mutated_individual")
 
     return output
-
-def tree_to_list(tree):
-    tokens = []
-    for node in tree:
-        if hasattr(node, "name"):
-            tokens.append(node.name)
-        else:
-            tokens.append(node.value)
-    return tokens
-
-def list_to_tree(nodes, pset):
-    try:
-        tree_str = " ".join(map(str, nodes))
-        print(f"Tree_str:\n{tree_str}")
-        return gp.PrimitiveTree.from_string(tree_str, pset)
-    except:
-        raise Exception("Invalid Tree - may be using invalid operators")
-    
-def load_module(module_name, filepath):
-    #Delete previous module
-    if module_name in sys.modules:
-        del sys.modules[module_name]
-
-    #Load in new module
-    spec = importlib.util.spec_from_file_location(module_name, filepath)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot create module spec for {filepath}")
-
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-
-    return module

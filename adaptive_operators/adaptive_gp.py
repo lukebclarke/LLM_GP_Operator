@@ -164,9 +164,10 @@ class AdaptiveGP():
                 t.start()
                 t.join(self.timeout)
 
-                if t.is_alive():
+                if t.is_alive() or result["sandbox"] == None:
                     raise TimeoutError("Operation timed out")
 
+                print(type(result["sandbox"]))
                 return result["sandbox"]
             
             except TimeoutError:
@@ -177,7 +178,7 @@ class AdaptiveGP():
                     result["sandbox"].delete()
                 except Exception:
                     #Add delay before retrying
-                    time.sleep(2)
+                    time.sleep(1)
 
         raise RuntimeError("Too many attempts to initialise Daytona sandbox")
 

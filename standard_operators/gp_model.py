@@ -96,6 +96,14 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.toolbox_ = None
 
     def create_pset(self, n_features):
+        """Defines the primitive set based on the defined functions and number of features
+
+        Args:
+            n_features (int): The number of features of X
+
+        Returns:
+            gp.PrimitiveSet: The custom primitive set
+        """
         pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
 
         #Describes what each function corresponds to
@@ -125,6 +133,16 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         return pset
     
     def create_toolbox(self, pset, X, Y):
+        """Creates toolbox which contains genetic operator
+
+        Args:
+            pset (gp.PrimitiveSet): The primitive set to use
+            X {array-like, sparse matrix}, shape (n_samples, n_features): The training input samples.
+            Y {array-like}, shape (n_samples,) or (n_samples, n_outputs): The target values
+
+        Returns:
+            base.Toolbox: The DEAP toolbox object for problem
+        """
         # Defines 'toolbox' functions we can use to create and evaluate individuals
         toolbox = base.Toolbox() 
         toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
@@ -144,6 +162,14 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         return toolbox
     
     def evaluateIndividual(self, toolbox, X, Y, individual):
+        """Calculates mean squared error (MSE) for individual/program (i.e. calculates fitness)
+
+        Args:
+            individual (gp.Individual): The individual to evaluate
+
+        Returns:
+            float: The MSE value
+        """
         #TODO: Work for multiple Y values
         #Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual) 
@@ -156,20 +182,14 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
-        """Evolves an evolutionary model with LLM-based adaptive operators. Identifies the best solution.
+        """Evolves an evolutionary model with standard genetic operators. Identifies the best solution.
 
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
-            The training input samples.
+        Args:
+            X {array-like, sparse matrix}, shape (n_samples, n_features): The training input samples.
+            y array-like, shape (n_samples,) or (n_samples, n_outputs): The target values (real numbers).
 
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values (real numbers).
-
-        Returns
-        -------
-        self : object
-            Returns self.
+        Returns:
+            StandardRegressor: Returns self.
         """
         #TODO: Check this line
         # X, y = self._validate_params(X, y, accept_sparse=True)
@@ -183,10 +203,6 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
 
         #Gets problem set
         pset = self.create_pset(n_features)
-
-        #TODO: Maybe move this somewhere else - we pass the creator? 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
-        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
         self.toolbox_ = self.create_toolbox(pset, X, y)
 
@@ -224,15 +240,11 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
     def predict(self, X):
         """Finds the value for a set of input variables, X, using our best found solution from the evolutionary process.
 
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
-            The training input samples.
+        Args:
+            X {array-like, sparse matrix}, shape (n_samples, n_features): The training input samples
 
-        Returns
-        -------
-        y : ndarray, shape (n_samples,)
-            Returns an array of values calculated from the best evolved solution .
+        Returns:
+            ndarray, shape (n_samples,): Returns an array of values calculated from the best evolved solution
         """
         if check_is_fitted(self):
             #Finds best solution, and compiles it into an equation

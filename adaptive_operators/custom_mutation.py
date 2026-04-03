@@ -35,9 +35,14 @@ class CustomMutation(BaseOperator):
         sys.path.append('/temp')
 
     def apply_operator(self, individuals):
-        # ind = individuals[0]
-        # offspring = self.current_operator_module.mutate_individual(ind, self.pset)
+        """Applies custom mutation locally to individuals
 
+        Args:
+            individuals (list): List of gp.Individual objects
+
+        Returns:
+            list: List of the offspring of type gp.Individual
+        """
         #Sets up environment
         global_env = {
             "individual": individuals[0],
@@ -57,6 +62,14 @@ class CustomMutation(BaseOperator):
             return [offspring]
 
     def mutate(self, individual):
+        """Determines which mutation operator to apply, and applies it
+
+        Args:
+            individual (gp.Individual): The parent to mutate
+
+        Returns:
+            (gp.Individual,): The offspring of the mutation operator
+        """
         #By default, use uniform mutation
         if self.operator_design == None:
             ind = gp.mutUniform(individual, expr=self.toolbox.expr_mut, pset=self.pset)

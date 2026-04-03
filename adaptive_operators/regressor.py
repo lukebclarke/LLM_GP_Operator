@@ -7,35 +7,24 @@ import networkx as nx
 import pygraphviz as pgv
 import numpy as np
 import pandas as pd
-
-#Testing - TODO: Can remove
-import operator
-import gp_primitives
-import math
 from functools import partial
 import random
 import inspect
 
 def get_string(tree, index=0, variable_mapping={}):
-    """  
-    Converts a DEAP expression to a sympy compatible model
+    """Converts a DEAP expression to a sympy compatible model
 
-    Parameters
-    ----------
-    tree: gp.Individual
-        The DEAP GP individual
-    
-    index: int
-        The position of the node to inspect within the tree
+    Args:
+        tree (gp.Individual): The DEAP GP individual
+        index (int, optional): The position of the node to inspect within the tree. Defaults to 0.
+        variable_mapping (dict, optional): Provides a mapping between DEAP variable names (e.g. ARG0) and the names provided by the data (e.g. x). Defaults to {}.
 
-    variable_mapping: dict
-        Provides a mapping between DEAP variable names (e.g. ARG0) and the names provided by the data (e.g. x) 
+    Raises:
+        Exception: Invalid arity of node within individual
 
-    Returns
-    -------
-    A sympy-compatible string of the final model. 
+    Returns:
+        string: A sympy-compatible string of the final model. 
     """
-    
     #Defines how to handle each term
     bracket_terms = ["log", "/", "sqrt", "exp", "sin", "cos", "tan"]
     sympy_mapping = {
@@ -60,7 +49,6 @@ def get_string(tree, index=0, variable_mapping={}):
         #Converts to string by firstly converting to PrimitiveTree, and then using DEAP's built in string conversion
         current_node = current_node_str
 
-    #TODO: Better way to do this?
     #Converts any names to sympy formats
     for k,v in sympy_mapping.items():
         current_node = current_node.replace(k,v)
@@ -94,6 +82,15 @@ def get_string(tree, index=0, variable_mapping={}):
     return node_str
             
 def get_children_indices(tree, index):
+    """Get the indices of children within tree
+
+    Args:
+        tree (gp.Individual): The DEAP GP individual
+        index (int): The index of the node to find children of
+
+    Returns:
+        list: The indexes of the children of the node within the tree
+    """
     node = tree[index]
 
     #Terminal nodes have no children (i.e. empty list)
@@ -111,21 +108,15 @@ def get_children_indices(tree, index):
     return children_indices
 
 def model(est, X=None):
+    """Return a sympy-compatible string of the final model. 
+
+    Args:
+        est (sklearn regressor): The fitted model. 
+        X (pd.DataFrame, optional): The training data. This argument can be dropped if desired. Defaults to None.
+
+    Returns:
+        string: A sympy-compatible string of the final model. 
     """
-    Return a sympy-compatible string of the final model. 
-
-    Parameters
-    ----------
-    est: sklearn regressor
-        The fitted model. 
-    X: pd.DataFrame, default=None
-        The training data. This argument can be dropped if desired.
-
-    Returns
-    -------
-    A sympy-compatible string of the final model. 
-    """
-
     #Finds best model
     new_model = est.hof[0]
 
@@ -137,22 +128,17 @@ def model(est, X=None):
     return model_str
 
 def complexity(est):
-    """
-    Counts the number of nodes required to represent the final estimator's symbolic expression as a parse tree
+    """Counts the number of nodes required to represent the final estimator's symbolic expression as a parse tree
 
-    Parameters
-    ----------
-    est: sklearn regressor
-        The fitted model. 
- 
-    Returns
-    -------
-    The count of the number of nodes in the final tree
+    Args:
+        est (sklearn regressor): The fitted model.
+
+    Returns:
+        int: The count of the number of nodes in the final tree
     """
     best_model = est.hof[0]
     
     return len(best_model)
-
 
 #TODO: Hyperparameter tuning by wrapping in sklearn CV class
 

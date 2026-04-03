@@ -98,6 +98,11 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.algorithms_ = None
 
     def shutdown_sandbox(self):
+        """Shutdowns sandbox
+
+        Returns:
+            bool: True if operation is successful, False otherwise.
+        """
         if self.algorithms_:
             self.algorithms_.shutdown_sandbox()
             return True
@@ -105,7 +110,16 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         return False
 
     def create_pset(self, n_features):
-        pset = gp.PrimitiveSet("MAIN", arity=n_features) #Program takes one input
+        """Defines the primitive set based on the defined functions and number of features
+
+        Args:
+            n_features (int): The number of features of X
+
+        Returns:
+            gp.PrimitiveSet: The custom primitive set
+        """
+        #Defines the number of inputs for problem as the number of features
+        pset = gp.PrimitiveSet("MAIN", arity=n_features) 
 
         #Describes what each function corresponds to
         operator_map = {
@@ -137,18 +151,12 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     def fit(self, X, y):
         """Evolves an evolutionary model with LLM-based adaptive operators. Identifies the best solution.
 
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
-            The training input samples.
+        Args:
+            X {array-like, sparse matrix}, shape (n_samples, n_features): The training input samples.
+            y array-like, shape (n_samples,) or (n_samples, n_outputs): The target values (real numbers).
 
-        y : array-like, shape (n_samples,) or (n_samples, n_outputs)
-            The target values (real numbers).
-
-        Returns
-        -------
-        self : object
-            Returns self.
+        Returns:
+            AdaptiveRegressor: Returns self.
         """
         #TODO: Check this line
         # X, y = self._validate_params(X, y, accept_sparse=True)
@@ -181,15 +189,11 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     def predict(self, X):
         """Finds the value for a set of input variables, X, using our best found solution from the evolutionary process.
 
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
-            The training input samples.
+        Args:
+            X {array-like, sparse matrix}, shape (n_samples, n_features): The training input samples
 
-        Returns
-        -------
-        y : ndarray, shape (n_samples,)
-            Returns an array of values calculated from the best evolved solution .
+        Returns:
+            ndarray, shape (n_samples,): Returns an array of values calculated from the best evolved solution
         """
         if check_is_fitted(self):
             #Finds best solution, and compiles it into an equation
