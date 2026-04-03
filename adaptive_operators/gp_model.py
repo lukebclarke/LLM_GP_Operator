@@ -173,7 +173,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             self.stats_ = None
             self.logbook_ = None
 
-        self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.runDynamicEA(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
+        self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.run_adaptive_ea(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
 
         self.is_fitted_ = True
         return self

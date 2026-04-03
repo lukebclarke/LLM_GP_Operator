@@ -36,11 +36,12 @@ from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
 
 class AdaptiveGP():
-    def __init__(self, n, pset, X, Y, k=2):
+    def __init__(self, n, pset, X, Y, k=2, timeout=20):
         self.n = n
         self.pset = pset
         self.X = X
         self.Y = Y
+        self.timeout = timeout
 
         #Loads in environment variables
         load_dotenv()
@@ -53,10 +54,10 @@ class AdaptiveGP():
         self.toolbox.register("compile", gp.compile, pset=pset) #Converts tree into runnable code 
         
         #Defines genetic operators
-        self.client = self.setupLLM() #Custom operators require LLM input
-        self.sandbox = self.setupDaytona()
+        self.client = self.setup_llm() #Custom operators require LLM input
+        self.sandbox = self.setup_daytona()
 
-        self.toolbox.register("evaluate", self.evaluateIndividual)
+        self.toolbox.register("evaluate", self.evaluate_individual)
         self.toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
@@ -91,7 +92,15 @@ class AdaptiveGP():
         self.gens_since_improvement = 0
         self.prev_min_fitness = np.inf
 
-    def setupLLM(self):
+    def setup_llm(self):
+        """Sets up Together LLM client
+
+        Raises:
+            Exception: API Key not found in .env file
+
+        Returns:
+            Together: The Together LLM client
+        """
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
 
@@ -100,44 +109,60 @@ class AdaptiveGP():
 
         client = Together(api_key=api_key)
 
-        print("LLM Setup")
         return client
     
-    #TODO: Define timeout somewhere else
-    def setupDaytona(self, timeout=30, max_attempts=10):
+    def initialise_sandbox_instance(self, result):
+        """Sets up sandbox - to be used in threading context
+
+        Args:
+            result (dict): The dictionary used to store results. 'sandbox' provides access to the Daytona sandbox.
+            timeout (float): The number 
+        """
+        #Create Daytona sandbox client
+        daytonaClient = Daytona()
+        sandbox = daytonaClient.create(timeout=self.timeout)
+        result["sandbox"] = sandbox
+        print("Sandbox setup")
+        
+        #Install DEAP
+        sandbox.process.exec("python -m pip install deap==1.4.1", timeout=self.timeout)
+        print("DEAP installed")
+        result["sandbox"] = sandbox
+
+        #Provide functions for pset
+        with open("gp_primitives.py", "rb") as f:
+            content = f.read()
+            sandbox.fs.upload_file(content, "gp_primitives.py", timeout=self.timeout)
+
+        #Upload Pset
+        pickle_object(self.pset, "pset")
+        with open("temp/pset.pkl", "rb") as f:
+            content = f.read()
+            sandbox.fs.upload_file(content, "pset.pkl")
+
+        result["sandbox"] = sandbox
+    
+    def setup_daytona(self, max_attempts=10):
+        """Attempts to setup Daytona sandbox, retrying if it fails initialisation.
+
+        Args:
+            max_attempts (int, optional): The number of attempts to retry before returning RuntimeError. Defaults to 10.
+
+        Raises:
+            RuntimeError: Raised if sandbox is reinitialised too many times
+
+        Returns:
+            Daytona: Daytona sandbox client
+        """
         for i in range(max_attempts):
             result = {"sandbox": None}
             try:
                 result["sandbox"] = None
 
-                def initialise_sandbox():
-                    daytonaClient = Daytona()
-                    sandbox = daytonaClient.create(timeout=timeout)
-                    result["sandbox"] = sandbox
-                    print("Sandbox setup")
-                    
-                    #Install DEAP
-                    sandbox.process.exec("python -m pip install deap==1.4.1", timeout=timeout)
-                    print("DEAP installed")
-                    result["sandbox"] = sandbox
-
-                    #Provide functions for pset
-                    with open("gp_primitives.py", "rb") as f:
-                        content = f.read()
-                        sandbox.fs.upload_file(content, "gp_primitives.py", timeout=timeout)
-
-                    #Upload Pset
-                    pickle_object(self.pset, "pset")
-                    with open("temp/pset.pkl", "rb") as f:
-                        content = f.read()
-                        sandbox.fs.upload_file(content, "pset.pkl")
-
-                    result["sandbox"] = sandbox
-
                 #Uses threads to implement timeout
-                t = threading.Thread(target=initialise_sandbox)
+                t = threading.Thread(target=self.initialise_sandbox_instance, args=(result,))
                 t.start()
-                t.join(timeout)
+                t.join(self.timeout)
 
                 if t.is_alive():
                     raise TimeoutError("Operation timed out")
@@ -151,14 +176,20 @@ class AdaptiveGP():
                 try:
                     result["sandbox"].delete()
                 except Exception:
-                    pass
-
-                #Add delay before retrying
-                time.sleep(2)
+                    #Add delay before retrying
+                    time.sleep(2)
 
         raise RuntimeError("Too many attempts to initialise Daytona sandbox")
 
-    def evaluateIndividual(self, individual):
+    def evaluate_individual(self, individual):
+        """Calculates mean squared error (MSE) for individual/program (i.e. calculates fitness)
+
+        Args:
+            individual (gp.Individual): The individual to evaluate
+
+        Returns:
+            float: The MSE value
+        """
         #TODO: Work for multiple Y values
         #Transform the tree expression in a callable function
         func = self.toolbox.compile(expr=individual) 
@@ -170,6 +201,11 @@ class AdaptiveGP():
         return math.fsum(sqerrors) / len(self.X),
 
     def get_stats(self):
+        """Returns stats about the algorithm instance
+
+        Returns:
+            dict: Statistics including 'crossover_redesigns', 'mutation_redesigns', 'fitness_improvements' and 'redesign_generations'
+        """
         stats = {}
         stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
         stats["mutation_redesigns"] = self.mutator.total_num_redesigns
@@ -184,6 +220,15 @@ class AdaptiveGP():
         return stats
 
     def check_stagnation(self, current_fitness, gen_num):
+        """Checks whether the design of the algorithm is stagnating, and redesigns if so
+
+        Args:
+            current_fitness (float): The current minimum fitness of the generation
+            gen_num (int): Generation number
+
+        Raises:
+            Exception: Raised when fitnesses are not being tracked correctly
+        """
         #There has been an improvement
         self.gens_since_improvement += 1
 
@@ -206,7 +251,18 @@ class AdaptiveGP():
         else:
             raise Exception("Error tracking fitnesses")
     
-    def runDynamicEA(self, cxpb=0.5, mutpb=0.1, ngen=40, verbose=True):
+    def run_adaptive_ea(self, cxpb=0.8, mutpb=0.1, ngen=40, verbose=True):
+        """Runs a standard evolutionary algorithm, redesigning genetic operators after periods of stagnation.
+
+        Args:
+            cxpb (float, optional): The probability of crossover. Defaults to 0.8.
+            mutpb (float, optional): The probability of mutation. Defaults to 0.1.
+            ngen (int, optional): The number of generations. Defaults to 40.
+            verbose (bool, optional): Outputs current record of logbook at each generation. Defaults to True.
+
+        Returns:
+            list, Logbook, list, dict: The population, logbook, hall of fame individuals, and stats
+        """
         logbook = tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (self.mstats.fields if self.mstats else [])
 
@@ -291,4 +347,7 @@ class AdaptiveGP():
         return self.pop, logbook, self.hof, ao_stats
         
     def shutdown_sandbox(self):
+        """
+        Deletes/shutdowns the sandbox
+        """
         self.sandbox.delete()
