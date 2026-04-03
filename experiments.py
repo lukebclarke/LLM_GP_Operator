@@ -136,8 +136,8 @@ def run_problem_instance(problem_name, params, num_runs=10):
     all_fit_min_ao = []
     all_fit_testing_ao = []
 
-    mutation_redesigns = []
-    crossover_redesigns = []
+    num_mutation_redesigns = []
+    num_crossover_redesigns = []
 
     for i in range(num_runs):
         #Defines random seed
@@ -152,6 +152,8 @@ def run_problem_instance(problem_name, params, num_runs=10):
                 break
             except MaximumNumberRetries:
                 continue
+
+        ao_est.shutdown_sandbox()
 
         #Run standard evolutionary algorithm
         print("Running standard EA")
@@ -173,8 +175,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
         all_size_avg_ao.append(ao_est.logbook_.chapters["size"].select("avg"))
         all_fit_min_ao.append(ao_est.logbook_.chapters["fitness"].select("min"))
 
-        mutation_redesigns.append(ao_est.stats_["mutation_redesigns"])
-        crossover_redesigns.append(ao_est.stats_["crossover_redesigns"])
+        #TODO: Testing
+        print(ao_est.stats_["mutation_designs"])
+
+        num_mutation_redesigns.append(ao_est.stats_["num_mutation_redesigns"])
+        num_crossover_redesigns.append(ao_est.stats_["num_crossover_redesigns"])
 
         redesign_gens = ao_est.stats_["redesign_generations"]
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
@@ -202,8 +207,8 @@ def run_problem_instance(problem_name, params, num_runs=10):
     ao_size_avg, ao_fit_min = get_stats(all_size_avg_ao, all_fit_min_ao)
 
     #Redesign counts
-    avg_redesigns_mut = sum(mutation_redesigns) / num_runs
-    avg_redesigns_cx = sum(crossover_redesigns) / num_runs
+    avg_redesigns_mut = sum(num_mutation_redesigns) / num_runs
+    avg_redesigns_cx = sum(num_crossover_redesigns) / num_runs
     print(f"Number of mutation redesigns: {avg_redesigns_mut}")
     print(f"Number of crossover redesigns: {avg_redesigns_cx}")
     log.write("\n")
@@ -240,7 +245,7 @@ def main():
     num_runs = 1
     params = {
         "pop_size": 10, #250
-        "gens": 7,
+        "gens": 15,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,

@@ -59,13 +59,17 @@ class BaseOperator():
         self.num_offspring = num_offspring
 
         self.num_retries = 0
-        self.local_skips = 0
 
         self.total_num_redesigns = 0
         self.timeout=40
         self.max_timeout_retries = 10
 
+        #Tracks previous design
         self.prev_design = None
+
+        #Statistics for current desing
+        self.total_operator_skips = 0
+        self.total_operator_evals = 0
 
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
@@ -202,7 +206,10 @@ class BaseOperator():
         self.operator_design = None 
         self.current_operator_module = None
         self.operator_design_validated = False
-        self.local_skips = 0
+
+        #Resets statistics for operator
+        self.total_operator_skips = 0
+        self.total_operator_evals = 0
 
         #Increments counter
         self.total_num_redesigns += 1
@@ -367,13 +374,14 @@ class BaseOperator():
             #TODO: Reset num_retries at end of generation
             #Only once the module has been operated locally, do we accept the design
             self.num_retries = 0
+            self.total_operator_evals += 1
 
             return offspring
         
         #Redesign if code is unable to execute locally
         except Exception as e:
-            self.local_skips += 1
-            if self.local_skips >= self.max_local_skips:
+            self.total_operator_skips += 1
+            if self.total_operator_skips >= self.max_local_skips:
                 print("Maximum number of local skips exceeded, redesigning operator...")
                 self.redesign_operator()
 

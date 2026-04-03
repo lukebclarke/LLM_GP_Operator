@@ -50,7 +50,7 @@ class AdaptiveGP():
         self.pop = self.toolbox.population(n=n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
 
-        # Track statistics
+        #Track statistics
         stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
         stats_size = tools.Statistics(len)
         self.mstats = tools.MultiStatistics(fitness=stats_fit, size=stats_size)
@@ -60,6 +60,10 @@ class AdaptiveGP():
         self.mstats.register("max", numpy.max)
         self.fitness_improvements = []
         self.redesign_generations = []
+
+        #Operator design statistics
+        self.mutation_designs = []
+        self.crossover_designs = []
 
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
         self.gens_since_improvement = 0
@@ -72,8 +76,8 @@ class AdaptiveGP():
             dict: Statistics including 'crossover_redesigns', 'mutation_redesigns', 'fitness_improvements' and 'redesign_generations'
         """
         stats = {}
-        stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
-        stats["mutation_redesigns"] = self.custom_mutate.total_num_redesigns
+        stats["num_crossover_redesigns"] = self.custom_crossover.total_num_redesigns
+        stats["num_mutation_redesigns"] = self.custom_mutate.total_num_redesigns
 
         #Adds extra generation at start with no value
         self.fitness_improvements[0] = np.nan
@@ -82,9 +86,67 @@ class AdaptiveGP():
         #Tracks which generations we redesign the operators on
         stats["redesign_generations"] = self.redesign_generations
 
+        #Tracks all operator designs
+        stats["crossover_designs"] = self.crossover_designs
+        stats["mutation_designs"] = self.mutation_designs
+
         return stats
 
-    def check_stagnation(self, current_fitness, gen_num):
+    def update_operator_history(self, current_gen, logbook):
+        current_mutator_design = self.custom_mutate.operator_design
+        current_crossover_design = self.custom_crossover.operator_design
+
+        #Success Rate for Mutation
+        if self.custom_mutate.total_operator_evals == 0:
+            mutator_success_rate = 0
+        else:
+            mutator_success_rate = (self.custom_mutate.total_operator_evals - self.custom_mutate.total_operator_skips) / (self.custom_mutate.total_operator_evals)
+        
+        #Success Rate for Crossover
+        if self.custom_crossover.total_operator_evals == 0:
+            crossover_success_rate = 0
+        else:
+            crossover_success_rate = (self.custom_crossover.total_operator_evals - self.custom_crossover.total_operator_skips) / (self.custom_crossover.total_operator_evals)
+        
+        print(f"Mutation success rate: {mutator_success_rate}")
+
+        first_gen = self.redesign_generations[-1]
+
+        #Fitness improvements (average and minimum)
+        min_fitness = logbook.chapters["fitness"].select("min")
+        avg_fitness = logbook.chapters["fitness"].select("avg")
+
+        #Finds percent improvement per generation
+        percent_improvement_min_fitness = []
+        percent_improvement_avg_fitness = []
+        for gen in range(first_gen-1, current_gen-1):
+            #Finds improvement in avg fitness from last generation
+            avg_improvement = avg_fitness[gen] - avg_fitness[gen+1]
+            avg_improvement = max(0.2, avg_improvement) #Can't go below 0.2
+            percent_improvement_avg_fitness.append((avg_improvement) / abs(avg_fitness[gen]))
+
+            #Finds improvement in minimum fitness from last generation
+            min_improvement = min_fitness[gen] - min_fitness[gen+1]
+            min_improvement = max(0.2, min_improvement) #Can't go below 0.2
+            percent_improvement_min_fitness.append((min_improvement) / abs(min_fitness[gen]))
+
+        #Calculates 'fitness' score of operator design
+        mean_min_fitness_improv = sum(percent_improvement_min_fitness) / len(percent_improvement_min_fitness)
+        mean_avg_fitness_improv = sum(percent_improvement_avg_fitness) / len(percent_improvement_avg_fitness)
+
+        print(f"Min fitness improv: {mean_min_fitness_improv}")
+        print(f"Avg fitness improv: {mean_avg_fitness_improv}")
+
+        mutator_score = (mutator_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
+        crossover_score = (crossover_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
+
+        print(f"Mutation score: {mutator_score}")
+
+        #Adds design + corresponding score to history
+        self.mutation_designs.append((current_mutator_design, mutator_score))
+        self.crossover_designs.append((current_crossover_design, crossover_score))
+
+    def check_stagnation(self, current_fitness, gen_num, logbook):
         """Checks whether the design of the algorithm is stagnating, and redesigns if so
 
         Args:
@@ -109,6 +171,8 @@ class AdaptiveGP():
         #There has not been an improvement in k generations
         elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement >= self.k:
             print("Stagnating.... Redesigning...")
+            if len(self.redesign_generations) > 0:
+                self.update_operator_history(gen_num, logbook)
             self.custom_crossover.redesign_operator()
             self.custom_mutate.redesign_operator()
             self.redesign_generations.append(gen_num)
@@ -206,8 +270,9 @@ class AdaptiveGP():
             self.custom_mutate.num_retries = 0
             self.custom_crossover.num_retries = 0
 
-            self.check_stagnation(min_fitness, gen)
+            self.check_stagnation(min_fitness, gen, logbook)
 
         ao_stats = self.get_stats()
+        #TODO: Update operator history at end
         
         return self.pop, logbook, self.hof, ao_stats
