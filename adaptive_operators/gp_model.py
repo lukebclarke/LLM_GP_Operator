@@ -36,6 +36,7 @@ from util import pickle_object
 
 class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     """A scikit-learn regressor model for an evolutionary algorithm with adaptive operators
+    TODO - Update doc string
 
     Parameters
     ----------
@@ -89,10 +90,11 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "mutpb": [float],
         "k": [int],
         "functions": [list],
-        "verbose": [bool]
+        "verbose": [bool],
+        "random_state": [int]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True, timeout=20):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True, timeout=20, random_state=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -102,6 +104,12 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.k = k
         self.verbose = verbose
         self.timeout = timeout
+        self.random_state = random_state
+
+        #Seeds run
+        if not self.random_state:
+            random.seed(self.random_state)
+            np.random.seed(self.random_state)
 
         #Setup LLM client
         load_dotenv()

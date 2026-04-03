@@ -140,7 +140,8 @@ def run_problem_instance(problem_name, params, num_runs=10):
     crossover_redesigns = []
 
     for i in range(num_runs):
-        print("Run number: ", i)
+        #Defines random seed
+        params["random_state"] = 42 + i
         
         #TODO: Prevent this from crashing altogether
         for i in range(10):
