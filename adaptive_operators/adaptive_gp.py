@@ -153,6 +153,20 @@ class AdaptiveGP():
         self.crossover_designs.append((current_crossover_design, crossover_score))
 
     def get_operator_design(self):
+
+        #Return default designs if the operators have not yet been redesigns
+        if not self.redesign_generations:
+            #Loads default crossover design
+            f = open("docs/default_crossover_design.txt")
+            crossover_design = f.read()
+            f.close()
+
+            f = open("docs/default_mutation_design.txt")
+            mutation_design = f.read()
+            f.close()
+
+            return crossover_design, mutation_design
+
         #Split lists into separate lists of designs and scores
         mutation_designs, mutation_scores = zip(*self.mutation_designs)
         crossover_designs, crossover_scores = zip(*self.crossover_designs)
@@ -197,6 +211,7 @@ class AdaptiveGP():
             print("Stagnating.... Redesigning...")
             if len(self.redesign_generations) > 0:
                 self.update_operator_history(gen_num, logbook)
+            crossover_design, mutation_design = self.get_operator_design()
             self.custom_crossover.redesign_operator()
             self.custom_mutate.redesign_operator()
             self.redesign_generations.append(gen_num)

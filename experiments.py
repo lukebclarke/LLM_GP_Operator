@@ -175,9 +175,6 @@ def run_problem_instance(problem_name, params, num_runs=10):
         all_size_avg_ao.append(ao_est.logbook_.chapters["size"].select("avg"))
         all_fit_min_ao.append(ao_est.logbook_.chapters["fitness"].select("min"))
 
-        #TODO: Testing
-        print(ao_est.stats_["mutation_designs"])
-
         num_mutation_redesigns.append(ao_est.stats_["num_mutation_redesigns"])
         num_crossover_redesigns.append(ao_est.stats_["num_crossover_redesigns"])
 
