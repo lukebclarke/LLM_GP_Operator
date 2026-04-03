@@ -8,12 +8,15 @@ import numpy as np
 import pandas as pd
 import os 
 import random
+import math
 
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
 from deap import gp
+
+from sklearn.model_selection import train_test_split
 
 def get_stats(all_size_avg, all_fit_min):
     #Ensure all runs are of same length (e.g. padding)
@@ -108,6 +111,8 @@ def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, m
 
 def run_problem_instance(problem_name, params, num_runs=10):
     X, Y = fetch_data(problem_name, return_X_y=True)
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
     #Make directory for results
     directory_name = f"results/{problem_name}"
@@ -125,9 +130,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
     #Statistics
     all_size_avg_ea = []
     all_fit_min_ea = []
+    all_fit_testing_ea = []
 
     all_size_avg_ao = []
     all_fit_min_ao = []
+    all_fit_testing_ao = []
 
     mutation_redesigns = []
     crossover_redesigns = []
@@ -140,8 +147,7 @@ def run_problem_instance(problem_name, params, num_runs=10):
             #Run adaptive evolutionary algorithm without re-initialising sanbdox
             try:
                 ao_est = AdaptiveRegressor(**params)
-                ao_est.fit(X, Y)
-                ao_est.shutdown_sandbox()
+                ao_est.fit(X_train, y_train)
                 break
             except MaximumNumberRetries:
                 continue
@@ -149,7 +155,15 @@ def run_problem_instance(problem_name, params, num_runs=10):
         #Run standard evolutionary algorithm
         print("Running standard EA")
         standard_est = StandardRegressor(**params)
-        standard_est.fit(X, Y)
+        standard_est.fit(X_train, y_train)
+
+        #Get fitnesses on testing data
+        standard_test = standard_est.predict(X_test)
+        ao_test = ao_est.predict(X_test)
+
+        #Evaluate the mean squared error between the expression and the real function
+        all_fit_testing_ea.append(np.mean((standard_test - y_test) ** 2))
+        all_fit_testing_ao.append(np.mean((ao_test - y_test) ** 2))
 
         #Update statistics
         all_size_avg_ea.append(standard_est.logbook_.chapters["size"].select("avg"))
@@ -196,6 +210,18 @@ def run_problem_instance(problem_name, params, num_runs=10):
     log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
     log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
 
+    #Results on testing data
+    print(f"Average Testing Fitness (Standard Operator): {np.mean(all_fit_testing_ea)}")
+    print(f"Average Testing Fitness (Adaptive Operator): {np.mean(all_fit_testing_ao)}")
+    print(f"Minimum Testing Fitness (Standard Operator): {min(all_fit_testing_ea)}")
+    print(f"Minimum Testing Fitness (Adaptive Operator): {min(all_fit_testing_ao)}")
+    log.write("\n")
+    log.write("\n")
+    log.write(f"Average Testing Fitness (Standard Operator): {np.mean(all_fit_testing_ea)}\n")
+    log.write(f"Average Testing Fitness (Adaptive Operator): {np.mean(all_fit_testing_ao)}\n")
+    log.write(f"Minimum Testing Fitness (Standard Operator): {min(all_fit_testing_ea)}\n")
+    log.write(f"Minimum Testing Fitness (Adaptive Operator): {min(all_fit_testing_ao)}\n")
+
     #Save graphs to results folder
     graph_file = f"{directory_name}/average_size.pdf"
     plot_comparison_graph("Average Size", "Standard", "Adaptive Operator", ea_size_avg, ao_size_avg, filepath=graph_file)
@@ -213,7 +239,7 @@ def main():
     num_runs = 1
     params = {
         "pop_size": 10, #250
-        "gens": 10,
+        "gens": 7,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
