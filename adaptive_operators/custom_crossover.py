@@ -15,9 +15,9 @@ import sys
 import inspect
 
 class CustomCrossover(BaseOperator):
-    def __init__(self, client, sandbox, pset, toolbox, custom_creator, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
         #Crossover operators have 2 parents and 2 offspring
-        super().__init__(client, sandbox, pset, toolbox, custom_creator, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
+        super().__init__(client, sandbox, pset, toolbox, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
 
         #Wrapper for code
         with open("docs/crossover_remote_wrapper.txt", "r") as f:
@@ -42,7 +42,7 @@ class CustomCrossover(BaseOperator):
             "individual1": individuals[0],
             "individual2": individuals[1],
             "pset": self.pset, 
-            "creator": self.creator
+            "creator": creator
         }
 
         #Executes compiled code

@@ -45,10 +45,6 @@ class AdaptiveGP():
         #Loads in environment variables
         load_dotenv()
 
-        #TODO: Maybe move this somewhere else - we pass the creator? 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
-        creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
-
         #Defines 'toolbox' functions we can use to create and evaluate individuals
         self.toolbox = base.Toolbox() 
         self.toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) #Generates random expressions (some full trees, other small ones)
@@ -65,8 +61,8 @@ class AdaptiveGP():
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.mutator = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, creator, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
+        self.mutator = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*n))
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
@@ -173,7 +169,7 @@ class AdaptiveGP():
 
         return math.fsum(sqerrors) / len(self.X),
 
-    def adaptive_operator_stats(self):
+    def get_stats(self):
         stats = {}
         stats["crossover_redesigns"] = self.custom_crossover.total_num_redesigns
         stats["mutation_redesigns"] = self.mutator.total_num_redesigns
@@ -291,7 +287,7 @@ class AdaptiveGP():
 
             self.check_stagnation(min_fitness, gen)
 
-        ao_stats = self.adaptive_operator_stats()
+        ao_stats = self.get_stats()
         return self.pop, logbook, self.hof, ao_stats
         
     def shutdown_sandbox(self):

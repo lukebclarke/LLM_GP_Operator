@@ -9,6 +9,12 @@ import pandas as pd
 import os 
 import random
 
+from deap import algorithms
+from deap import base
+from deap import creator
+from deap import tools
+from deap import gp
+
 def get_stats(all_size_avg, all_fit_min):
     #Ensure all runs are of same length (e.g. padding)
     max_length_alg = max((len(run)) for run in all_fit_min)
@@ -200,11 +206,14 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
 def main():
     #Parameters
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
+    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
+
     problem_list = "problems/ground_truth.txt"
     num_runs = 1
     params = {
         "pop_size": 10, #250
-        "gens": 40,
+        "gens": 10,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,

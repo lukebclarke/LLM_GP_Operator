@@ -35,14 +35,13 @@ class MaximumNumberRetries(Exception):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
 class BaseOperator():
-    def __init__(self, client, sandbox, pset, toolbox, custom_creator, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
+    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
         self.llm_client = client
         self.llm_model = model
 
         #Problem Definition
         self.pset = pset
         self.toolbox = toolbox
-        self.creator = custom_creator
         self.sandbox = sandbox
 
         #Number of times to retry generating LLM response 
@@ -72,38 +71,25 @@ class BaseOperator():
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
     
-    #TODO: Define custom exception classes, and add to doc strings
-
-    def reset_operator(self):
-        self.operator_design = None 
-        self.current_operator_module = None
-        self.operator_design_validated = False
-        self.llm_prompt = None
-        self.num_retries = 0
-        self.local_skips = 0
-        self.total_num_redesigns = 0
-
-    def remove_design(self):
-        self.operator_design = None 
-        self.current_operator_module = None
-        self.operator_design_validated = False
-        self.local_skips = 0
-
-    def load_operator_module(self, module_name, file_name):
-        with open(f"temp/{file_name}.py", "w") as f:
-            #Ensures imports are present
-            f.write("from deap import base, creator, tools, gp\n")
-            f.write("import random\n")
-            f.write(self.operator_design)
-
-        self.current_operator_module = load_module(module_name, f"temp/{file_name}.py")
-
     def update_llm_prompt(self, history):
+        """Adds additional information about algortihm progress to LLM prompt
+
+        Args:
+            history (dict): The logbook for the run
+        """
         #LLMs can deal with JSON
         formatted_history = json.dumps(history, indent=2)
         self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
 
     def validate_individual(self, individual):
+        """Ensures that an individual is valid (i.e. compatible with DEAP)
+
+        Args:
+            individual (gp.Individual): The individual to check
+
+        Returns:
+            bool: True if the individual is compatible with DEAP
+        """
         try:
             h = individual.height
             return True
@@ -111,6 +97,14 @@ class BaseOperator():
             return False
 
     def clean_individual(self, individual):
+        """Ensures individual is in the correct format
+
+        Args:
+            individual (gp.Individual): Individual to clean
+
+        Returns:
+            gp.Individual: The individual in the correct format
+        """
         #Unwraps tuple (if applicable)
         if isinstance(individual, tuple) and len(individual) == 1:
             individual = list(individual)[0]
@@ -121,42 +115,53 @@ class BaseOperator():
 
         return individual
     
+    def get_llm_response(self, results):
+        """Gets response from LLM. To be used in threading context
+
+        Args:
+            results (dict): The dictionary of results to update. Includes 'code' and 'exception' entries.
+        """
+        try:
+            response = self.llm_client.chat.completions.create(
+            model=self.llm_model,
+            temperature=0.80,
+            messages=[
+            {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
+            {
+                "role": "user",
+                "content": self.llm_prompt
+            }
+            ],
+        )
+            
+            code = response.choices[0].message.content
+        
+            results["code"] = code
+            results["exception"] = False
+            
+        except Exception:
+            results["exception"] = True
+    
     def llm_standard_model(self):
-        for i in range(self.max_timeout_retries):
+        """Prompts a standard, non-reasoning LLM model for an operator design.
+
+        Returns:
+            string: The generated operator design
+        """
+        for _ in range(self.max_timeout_retries):
             try:
+                #Results are defined in dictionary so they can be passed to threads
                 results = {
                     "code": None,
                     "exception": False
                 }
 
-                def get_llm_response():
-                    #Uploads files to sandbox
-                    try:
-                        response = self.llm_client.chat.completions.create(
-                        model=self.llm_model,
-                        temperature=0.80,
-                        messages=[
-                        {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
-                        {
-                            "role": "user",
-                            "content": self.llm_prompt
-                        }
-                        ],
-                    )
-                        
-                        code = response.choices[0].message.content
-                    
-                        results["code"] = code
-                        results["exception"] = False
-                        
-                    except Exception:
-                        results["exception"] = True
-
                 #Uses threads to implement timeout
-                t = threading.Thread(target=get_llm_response)
+                t = threading.Thread(target=self.get_llm_response, args=(results,))
                 t.start()
                 t.join(self.timeout)
 
+                #If thread is still running after timeout, terminate and try again
                 if t.is_alive() or results["exception"] == True:
                     results["exception"] = False
                     raise Exception
@@ -164,9 +169,12 @@ class BaseOperator():
                 return results["code"]
 
             except Exception:
+                #Wait before retrying
                 time.sleep(1)
     
     def llm_reasoning_model(self):
+        #TODO: Test this properly
+
         response = self.llm_client.chat.completions.create(
                 model="MiniMaxAI/MiniMax-M2.5",
                 temperature=0.80,
@@ -186,11 +194,20 @@ class BaseOperator():
         return code
 
     def redesign_operator(self):
-        self.remove_design()
-        self.total_num_redesigns += 1
+        """Redesigns the current operator using LLMs
+
+        Raises:
+            MaximumNumberRetries: Raised if we attempt more than the maximum specified number of retries
+        """
+        #Resets state of operator
+        self.operator_design = None 
+        self.current_operator_module = None
+        self.operator_design_validated = False
         self.local_skips = 0
 
-        #TODO: Create a counter of how many time it retries
+        #Increments counter
+        self.total_num_redesigns += 1
+
         code = ""
         #Keeps generating until correct format is produced
         while self.num_retries <= self.max_num_retries:
@@ -219,7 +236,7 @@ class BaseOperator():
             sandbox (Daytona): The Daytona sandbox used to execute the LLM-generated design
 
         Raises:
-            Exception: TODO
+            MaximumNumberRetries: Raised if we attempt more than the maximum specified number of retries
 
         Returns:
             [gp.Individual]: The offspring of the operation
@@ -287,9 +304,6 @@ class BaseOperator():
                         self.operator_design_validated = True
                         self.current_operator_module = None
 
-
-                        log = self.sandbox.fs.download_file("error.txt")
-                        # print(log.decode("utf-8")) #Prints error log
                     except Exception:
                         results["exception"] = True
 
@@ -328,14 +342,10 @@ class BaseOperator():
             individuals ([gp.Individual]):  A list of the parent individuals
             llm_client (Together): The LLM client used to redesign the operator
 
-        Raises:
-            Exception: TODO
-
         Returns:
             [gp.Individual]: A list of the offspring of the operation
         """
         #TODO: Wrap in try except - redesign if crashes
-        #TODO: Do we need to pass LLM_Client?
 
         #Ensure that the Python design is saved locally
         if self.current_operator_module == None:
@@ -343,42 +353,29 @@ class BaseOperator():
 
             self.current_operator_module = compile(wrapper_text, f"operator_{self.num_parents}", "exec")
 
-            #TODO: Temp for testing
-            with open("temp/testing_current_local_design.py", "w") as f:
-                f.write(f"#Time execution: {time.time()}\n")
-                f.write(self.operator_design)
+        #Attempt to apply operator locally
+        try:
+            offspring = self.apply_operator(individuals)
 
-        #Attempt to apply operator locally TODO - Used for testing purposes, can remove
-        if self.current_operator_module != None:
-            try:
-                offspring = self.apply_operator(individuals)
+            #Ensure correct types
+            for i in range(len(offspring)):
+                offspring[i] = self.clean_individual(offspring[i])
 
-                #Ensure correct types
-                for i in range(len(offspring)):
-                    offspring[i] = self.clean_individual(offspring[i])
+                if not self.validate_individual(offspring[i]):
+                    raise Exception("Invalid offspring generated")
 
-                    if not self.validate_individual(offspring[i]):
-                        raise Exception("Invalid offspring generated")
+            #TODO: Reset num_retries at end of generation
+            #Only once the module has been operated locally, do we accept the design
+            self.num_retries = 0
 
-                #TODO: Reset num_retries at end of generation
-                #Only once the module has been operated locally, do we accept the design
-                self.num_retries = 0
+            return offspring
+        
+        #Redesign if code is unable to execute locally
+        except Exception as e:
+            self.local_skips += 1
+            if self.local_skips >= self.max_local_skips:
+                print("Maximum number of local skips exceeded, redesigning operator...")
+                self.redesign_operator()
 
-                # self.prev_design = self.current_operator_module
-
-                return offspring
-            
-            #Redesign if code is unable to execute locally
-            except Exception as e:
-                #Get new individuals (TODO)
-
-                self.local_skips += 1
-                if self.local_skips >= self.max_local_skips:
-                    print("Maximum number of local skips exceeded, redesigning operator...")
-                    self.redesign_operator()
-
-                #If operator doesn't work, return the original individuals 
-                return individuals
-            
-        else:
-            raise Exception("No module loaded for custom operator") #TODO: Sort out error handling
+            #If operator doesn't work, return the original individuals 
+            return individuals
