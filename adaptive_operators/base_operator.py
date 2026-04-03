@@ -285,6 +285,7 @@ class BaseOperator():
             try:
                 results = {"offspring": [],
                            "exception": None}
+                
                 def execute_llm_code():
                     try:
                         compile(wrapper_text, "<sandbox>", "exec")

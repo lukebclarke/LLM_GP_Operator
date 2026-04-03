@@ -195,8 +195,9 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
                 if t.is_alive() or result["sandbox"] == None:
                     raise TimeoutError("Operation timed out")
 
-                print(type(result["sandbox"]))
-                return result["sandbox"]
+                self.sandbox = result["sandbox"]
+
+                return self.sandbox
             
             except TimeoutError:
                 print("Sandbox initialisation failed...")
