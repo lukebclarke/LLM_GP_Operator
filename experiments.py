@@ -266,7 +266,7 @@ def main():
     num_runs = 1
     params = {
         "pop_size": 10, #250
-        "gens": 10,
+        "gens": 15,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,

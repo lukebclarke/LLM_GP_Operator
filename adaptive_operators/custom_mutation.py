@@ -15,9 +15,9 @@ import inspect
 from adaptive_operators.base_operator import BaseOperator
 
 class CustomMutation(BaseOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_local_skips=5, max_num_retries=5, default_temperature=0.3, temperature_alpha=0.1):
         #Mutation operators have 2 parents and 2 offspring
-        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model)
+        super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model, default_temperature=default_temperature, temperature_alpha=temperature_alpha)
 
         #Wrapper for code
         with open("docs/mutation_remote_wrapper.txt", "r") as f:

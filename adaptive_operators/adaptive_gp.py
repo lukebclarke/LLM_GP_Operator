@@ -33,7 +33,7 @@ from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
 
 class AdaptiveGP():
-    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, timeout=20):
+    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, timeout=20):
         self.n = n
         self.pset = pset
         self.toolbox = toolbox
@@ -66,8 +66,12 @@ class AdaptiveGP():
         self.crossover_designs = []
 
         self.k = k #Redesign algorithm if there has no improvement in fitness for K generations
-        self.gens_since_improvement = 0
+        self.gens_since_redesign = 0
         self.prev_min_fitness = np.inf
+
+        #Self-adaptation variables
+        self.gens_since_improvement = 0 #Used for self-adaptation
+        self.self_adapt_req = self_adapt_req
 
     def get_stats(self):
         """Returns stats about the algorithm instance
@@ -235,21 +239,20 @@ class AdaptiveGP():
         Raises:
             Exception: Raised when fitnesses are not being tracked correctly
         """
-        #There has been an improvement
-        self.gens_since_improvement += 1
-
         #Updates statistics
         self.fitness_improvements.append(self.prev_min_fitness - current_fitness)
 
         #There has been an improvement - continue evolution as normal
         if current_fitness < self.prev_min_fitness:
             self.prev_min_fitness = current_fitness
+            self.gens_since_redesign = 0
             self.gens_since_improvement = 0
         #There has not been an improvement, but less than k generations have surpassed
-        elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement < self.k:
+        elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign < self.k:
+            self.gens_since_redesign += 1
             self.gens_since_improvement += 1
         #There has not been an improvement in k generations - redesign operator design
-        elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement >= self.k:
+        elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign >= self.k:
             print("Stagnating.... Redesigning...")
             #Adds operator design to history
             if len(self.redesign_generations) > 0:
@@ -267,7 +270,8 @@ class AdaptiveGP():
             self.custom_mutate.redesign_operator()
 
             self.redesign_generations.append(gen_num)
-            self.gens_since_improvement = 0
+            self.gens_since_redesign = 0
+            self.gens_since_improvement += 1
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -359,7 +363,11 @@ class AdaptiveGP():
 
             self.check_stagnation(min_fitness, gen, logbook, history)
 
+            #Self-adapt temperature if there has been no improvement for a certain number of generations (even after redesigns)
+            if self.gens_since_improvement >= self.self_adapt_req:
+                self.custom_mutate.self_adapt_temperature()
+                self.custom_crossover.self_adapt_temperature()
+
         ao_stats = self.get_stats()
-        #TODO: Update operator history at end
         
         return self.pop, logbook, self.hof, ao_stats

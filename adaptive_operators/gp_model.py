@@ -89,12 +89,15 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "cxpb": [float],
         "mutpb": [float],
         "k": [int],
+        "self_adapt_req": [int],
+        "default_temperature": [float],
+        "temperature_alpha": [float],
         "functions": [list],
         "verbose": [bool],
         "random_state": [int]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True, timeout=20, random_state=None):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -105,6 +108,9 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.verbose = verbose
         self.timeout = timeout
         self.random_state = random_state
+        self.self_adapt_req = self_adapt_req
+        self.default_temperature = default_temperature
+        self.temperature_alpha = temperature_alpha
 
         #Seeds run
         if not self.random_state:
@@ -276,8 +282,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*self.pop_size))
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*self.pop_size))
+        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model="Qwen/Qwen3-Coder-Next-FP8", max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
@@ -347,7 +353,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
 
         #If we have already initialised regressor, don't load up operators class again (sandbox takes long time to initialise)
         if self.algorithms_ == None:
-            self.algorithms_ = AdaptiveGP(self.pop_size, self.pset, self.toolbox, self.client, self.sandbox, self.custom_mutate, self.custom_crossover, X, y, self.k)
+            self.algorithms_ = AdaptiveGP(self.pop_size, self.pset, self.toolbox, self.client, self.sandbox, self.custom_mutate, self.custom_crossover, X, y, self.k, self_adapt_req=self.self_adapt_req)
         #If we have already run algorithm, reset all variables
         else:
             self.final_pop_ = None

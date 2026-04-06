@@ -34,7 +34,7 @@ class MaximumNumberRetries(Exception):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
 class BaseOperator():
-    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
+    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, default_temperature=0.3, temperature_alpha=0.1, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
         self.llm_client = client
         self.llm_model = model
 
@@ -63,6 +63,9 @@ class BaseOperator():
         self.total_num_redesigns = 0
         self.timeout=40
         self.max_timeout_retries = 10
+
+        self.temperature = default_temperature
+        self.temperature_alpha = temperature_alpha
 
         #Tracks previous design
         self.prev_design = None
@@ -95,7 +98,10 @@ class BaseOperator():
         self.llm_prompt = self.llm_prompt.replace("INSERT_BEST_SOLUTION_HERE", str(best_solution))
         self.llm_prompt = self.llm_prompt.replace("INSERT_EXAMPLE_METHOD", example_design)
 
-        print(self.llm_prompt)
+    def self_adapt_temperature(self):
+        """Increases the temperature to improve diversity"""
+        self.temperature = self.temperature + self.temperature_alpha
+        print(f"Temperature: {self.temperature}")
 
     def validate_individual(self, individual):
         """Ensures that an individual is valid (i.e. compatible with DEAP)
@@ -140,7 +146,7 @@ class BaseOperator():
         try:
             response = self.llm_client.chat.completions.create(
             model=self.llm_model,
-            temperature=0.80,
+            temperature=self.temperature,
             messages=[
             {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
             {
@@ -193,7 +199,7 @@ class BaseOperator():
 
         response = self.llm_client.chat.completions.create(
                 model="MiniMaxAI/MiniMax-M2.5",
-                temperature=0.80,
+                temperature=self.temperature,
                 messages=[
                 {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
                 {
