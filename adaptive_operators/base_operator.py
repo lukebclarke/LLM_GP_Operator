@@ -74,7 +74,7 @@ class BaseOperator():
         #Enables us to import operator designs stored in temp folder 
         sys.path.append('/temp')
     
-    def update_llm_prompt(self, history, example_design):
+    def update_llm_prompt(self, history, example_design, best_solution):
         """Adds additional information about algortihm progress to LLM prompt
 
         Args:
@@ -90,9 +90,12 @@ class BaseOperator():
         #LLMs can deal with JSON
         formatted_history = json.dumps(filtered_history, indent=2)
 
-        #Setup prompt by inserting logbook and example method
+        #Setup prompt by inserting logbook, example method, and current best solution
         self.llm_prompt = self.original_llm_prompt.replace("INSERT_LOGBOOK_HERE", str(formatted_history))
+        self.llm_prompt = self.llm_prompt.replace("INSERT_BEST_SOLUTION_HERE", str(best_solution))
         self.llm_prompt = self.llm_prompt.replace("INSERT_EXAMPLE_METHOD", example_design)
+
+        print(self.llm_prompt)
 
     def validate_individual(self, individual):
         """Ensures that an individual is valid (i.e. compatible with DEAP)

@@ -259,8 +259,8 @@ class AdaptiveGP():
             crossover_design, mutation_design = self.get_operator_design()
 
             #Updates prompt to include fitness history and example operator design
-            self.custom_crossover.update_llm_prompt(history, crossover_design)
-            self.custom_mutate.update_llm_prompt(history, mutation_design)
+            self.custom_crossover.update_llm_prompt(history, crossover_design, self.hof[0])
+            self.custom_mutate.update_llm_prompt(history, mutation_design, self.hof[0])
 
             #Redesigns both operators
             self.custom_crossover.redesign_operator()

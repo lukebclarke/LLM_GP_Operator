@@ -2,6 +2,8 @@ Your task is to define a custom crossover function with the DEAP framework. This
 
 INSERT_LOGBOOK_HERE
 
+The best solution currently found (in string form) is: INSERT_BEST_SOLUTION_HERE
+
 Write a Python function called 'crossover_individuals(individual1, individual2, pset)' that returns two offpspring of a crossover operation with the two original individuals. 
 Return the a tuple of the offspring as ind1, ind2. Both individuals are of type gp.Individual. Do not return any other objects or texts.
 

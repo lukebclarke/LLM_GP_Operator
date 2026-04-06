@@ -2,6 +2,8 @@ Your task is to define a custom mutation function with the DEAP framework. This 
 
 INSERT_LOGBOOK_HERE
 
+The best solution currently found (in string form) is: INSERT_BEST_SOLUTION_HERE
+
 Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual as a tuple (mutated_individual,). 
 Include all necessary imports, including random, and include the following line at the start:
 from deap import base, creator, tools, gp
