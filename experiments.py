@@ -275,7 +275,8 @@ def main():
         "verbose": True,
         "self_adapt_req": 5,
         "default_temperature": 0.3,
-        "temperature_alpha": 0.1
+        "temperature_alpha": 0.1,
+        "maximum_stagnation": 1
     }
 
     #Finds all ground truth datasets

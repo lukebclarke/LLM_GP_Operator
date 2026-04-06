@@ -353,8 +353,8 @@ class AdaptiveGP():
             history["max_size"].append(float(record["size"]["max"]))
             history["min_size"].append(float(record["size"]["min"]))
 
-            #Solution found - early stopping
-            if record["fitness"]["min"] < 0.00001 :
+            #Solution found or stops after significant stagnation - early stopping
+            if record["fitness"]["min"] < 0.0000001 or self.gens_since_improvement >= self.maximum_stagnation:
                 break
 
             #Each generation, reset the number of local skips each operator is allowed

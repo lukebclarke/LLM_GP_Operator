@@ -92,12 +92,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "self_adapt_req": [int],
         "default_temperature": [float],
         "temperature_alpha": [float],
+        "maximum_stagnation": [int],
         "functions": [list],
         "verbose": [bool],
         "random_state": [int]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -111,6 +112,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.self_adapt_req = self_adapt_req
         self.default_temperature = default_temperature
         self.temperature_alpha = temperature_alpha
+        self.maximum_stagnation = maximum_stagnation
 
         #Seeds run
         if not self.random_state:
@@ -353,7 +355,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
 
         #If we have already initialised regressor, don't load up operators class again (sandbox takes long time to initialise)
         if self.algorithms_ == None:
-            self.algorithms_ = AdaptiveGP(self.pop_size, self.pset, self.toolbox, self.client, self.sandbox, self.custom_mutate, self.custom_crossover, X, y, self.k, self_adapt_req=self.self_adapt_req)
+            self.algorithms_ = AdaptiveGP(self.pop_size, self.pset, self.toolbox, self.client, self.sandbox, self.custom_mutate, self.custom_crossover, X, y, self.k, self_adapt_req=self.self_adapt_req, maximum_stagnation=self.maximum_stagnation)
         #If we have already run algorithm, reset all variables
         else:
             self.final_pop_ = None
