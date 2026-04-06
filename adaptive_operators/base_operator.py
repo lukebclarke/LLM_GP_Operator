@@ -34,9 +34,10 @@ class MaximumNumberRetries(Exception):
         super().__init__(f"Maximum Number of Retries for Operator: {num_parents} Parents")
 
 class BaseOperator():
-    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, default_temperature=0.3, temperature_alpha=0.1, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8"):
+    def __init__(self, client, sandbox, pset, toolbox, num_parents, num_offspring, default_temperature=0.3, temperature_alpha=0.1, max_num_retries=5, max_local_skips=5, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False):
         self.llm_client = client
         self.llm_model = model
+        self.reasoning_model = reasoning_model
 
         #Problem Definition
         self.pset = pset
@@ -139,7 +140,7 @@ class BaseOperator():
 
         return individual
     
-    def get_llm_response(self, results):
+    def get_standard_llm_response(self, results):
         """Gets response from LLM. To be used in threading context
 
         Args:
@@ -165,8 +166,37 @@ class BaseOperator():
             
         except Exception:
             results["exception"] = True
+
+    def get_reasoning_llm_response(self, results):
+        """Gets response from LLM. To be used in threading context
+
+        Args:
+            results (dict): The dictionary of results to update. Includes 'code' and 'exception' entries.
+        """
+        try:
+            response = self.llm_client.chat.completions.create(
+                model="MiniMaxAI/MiniMax-M2.5",
+                temperature=self.temperature,
+                messages=[
+                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
+                {
+                    "role": "user",
+                    "content": self.llm_prompt
+                }
+                ],
+                stream=False,
+                max_tokens=2000,
+            )
+                
+            code = response.choices[0].message.content
+                    
+            results["code"] = code
+            results["exception"] = False
+            
+        except Exception:
+            results["exception"] = True
     
-    def llm_standard_model(self):
+    def prompt_llm(self):
         """Prompts a standard, non-reasoning LLM model for an operator design.
 
         Returns:
@@ -181,7 +211,11 @@ class BaseOperator():
                 }
 
                 #Uses threads to implement timeout
-                t = threading.Thread(target=self.get_llm_response, args=(results,))
+                if self.reasoning_model:
+                    t = threading.Thread(target=self.get_reasoning_llm_response, args=(results,))
+                else:
+                    t = threading.Thread(target=self.get_standard_llm_response, args=(results,))
+
                 t.start()
                 t.join(self.timeout)
 
@@ -196,27 +230,6 @@ class BaseOperator():
                 #Wait before retrying
                 time.sleep(1)
     
-    def llm_reasoning_model(self):
-        #TODO: Test this properly
-
-        response = self.llm_client.chat.completions.create(
-                model="MiniMaxAI/MiniMax-M2.5",
-                temperature=self.temperature,
-                messages=[
-                {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
-                {
-                    "role": "user",
-                    "content": self.llm_prompt
-                }
-                ],
-                stream=False,
-                max_tokens=2000,
-            )
-                
-        code = response.choices[0].message.content
-        
-        return code
-
     def redesign_operator(self):
         """Redesigns the current operator using LLMs
 
@@ -240,7 +253,7 @@ class BaseOperator():
         while self.num_retries <= self.max_num_retries:
             self.num_retries += 1
 
-            code = self.llm_standard_model()
+            code = self.prompt_llm()
 
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):

@@ -282,7 +282,9 @@ def main():
         "self_adapt_req": 5,
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
-        "maximum_stagnation": 10
+        "maximum_stagnation": 10,
+        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "reasoning_model": False
     }
 
     #Finds all ground truth datasets
