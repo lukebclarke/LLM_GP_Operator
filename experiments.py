@@ -185,8 +185,13 @@ def run_problem_instance(problem_name, params, num_runs=10):
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
         fitness_improvement_per_gen_standard = standard_est.stats_["fitness_improvements"]
 
-        best_mutation_designs.append(ao_est.stats_["best_mutation_design"])
-        best_crossover_designs.append(ao_est.stats_["best_crossover_design"])
+        best_mutation_design = ao_est.stats_["best_mutation_design"]
+        best_crossover_design = ao_est.stats_["best_crossover_design"]
+        if best_mutation_design:
+            best_mutation_designs.append()
+
+        if best_crossover_design:
+            best_crossover_designs.append()
 
         graph_name = f"/fitness_improvement_run{i}"
         graph_filepath = directory_name + graph_name
@@ -232,8 +237,9 @@ def run_problem_instance(problem_name, params, num_runs=10):
     log.write(f"Minimum Testing Fitness (Adaptive Operator): {min(all_fit_testing_ao)}\n")
 
     #Find overall best operator designs
-    best_mutation_design, best_mutation_stats = max(best_mutation_designs, key=lambda x: x[1]["score"])
-    best_crossover_design, best_crossover_stats = max(best_crossover_designs, key=lambda x: x[1]["score"])
+    if best_mutation_designs:
+        best_mutation_design, best_mutation_stats = max(best_mutation_designs, key=lambda x: x[1]["score"])
+        best_crossover_design, best_crossover_stats = max(best_crossover_designs, key=lambda x: x[1]["score"])
 
     #Writes operator designs to files
     mutation_design_file = open(f"{directory_name}/mutation_design.txt", "w")
