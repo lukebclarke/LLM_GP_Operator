@@ -160,7 +160,7 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
         #Run standard evolutionary algorithm
         print("Running standard EA")
-        standard_est = StandardRegressor(pop_size=params["pop_size"], gens=params["gens"], max_time=params["max_time"], cxpb=params["cxpb"], mutpb=params["mutpb"], functions=params["functions"], verbose=params["verbose"], random_state=params["random_state"])
+        standard_est = StandardRegressor(pop_size=params["pop_size"], gens=params["gens"], max_time=params["max_time"], cxpb=params["cxpb"], mutpb=params["mutpb"], functions=params["functions"], verbose=params["verbose"], random_state=params["random_state"], maximum_stagnation=params["maximum_stagnation"])
         standard_est.fit(X_train, y_train)
 
         #Get fitnesses on testing data
@@ -241,19 +241,19 @@ def run_problem_instance(problem_name, params, num_runs=10):
         best_mutation_design, best_mutation_stats = max(best_mutation_designs, key=lambda x: x[1]["score"])
         best_crossover_design, best_crossover_stats = max(best_crossover_designs, key=lambda x: x[1]["score"])
 
-    #Writes operator designs to files
-    mutation_design_file = open(f"{directory_name}/mutation_design.txt", "w")
-    crossover_design_file = open(f"{directory_name}/crossover_design.txt", "w")
+        #Writes operator designs to files
+        mutation_design_file = open(f"{directory_name}/mutation_design.txt", "w")
+        crossover_design_file = open(f"{directory_name}/crossover_design.txt", "w")
 
-    mutation_design_file.write(f"Success Rate: {best_mutation_stats["success_rate"]}\n")
-    mutation_design_file.write(f"Mean Minimum Fitness Improvement: {best_mutation_stats["min_fitness_improv"]}\n")
-    mutation_design_file.write(f"Mean Average Fitness Improvement: {best_mutation_stats["avg_fitness_improv"]}\n")
-    mutation_design_file.write(f"\nOperator Design:\n{best_mutation_design}")
+        mutation_design_file.write(f"Success Rate: {best_mutation_stats["success_rate"]}\n")
+        mutation_design_file.write(f"Mean Minimum Fitness Improvement: {best_mutation_stats["min_fitness_improv"]}\n")
+        mutation_design_file.write(f"Mean Average Fitness Improvement: {best_mutation_stats["avg_fitness_improv"]}\n")
+        mutation_design_file.write(f"\nOperator Design:\n{best_mutation_design}")
 
-    crossover_design_file.write(f"Success Rate: {best_crossover_stats["success_rate"]}\n")
-    crossover_design_file.write(f"Mean Minimum Fitness Improvement: {best_crossover_stats["min_fitness_improv"]}\n")
-    crossover_design_file.write(f"Mean Average Fitness Improvement: {best_crossover_stats["avg_fitness_improv"]}\n")
-    crossover_design_file.write(f"\nOperator Design:\n{best_crossover_design}")
+        crossover_design_file.write(f"Success Rate: {best_crossover_stats["success_rate"]}\n")
+        crossover_design_file.write(f"Mean Minimum Fitness Improvement: {best_crossover_stats["min_fitness_improv"]}\n")
+        crossover_design_file.write(f"Mean Average Fitness Improvement: {best_crossover_stats["avg_fitness_improv"]}\n")
+        crossover_design_file.write(f"\nOperator Design:\n{best_crossover_design}")
 
     #Save graphs to results folder
     graph_file = f"{directory_name}/average_size.pdf"
@@ -282,7 +282,7 @@ def main():
         "self_adapt_req": 5,
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
-        "maximum_stagnation": 1
+        "maximum_stagnation": 10
     }
 
     #Finds all ground truth datasets

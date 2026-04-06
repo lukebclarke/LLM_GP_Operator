@@ -79,7 +79,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         "random_state": [int]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, random_state=None):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, random_state=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -88,6 +88,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.functions = functions
         self.verbose = verbose
         self.random_state = random_state
+        self.maximum_stagnation = maximum_stagnation
 
         #Seeds run
         if not self.random_state:
@@ -100,6 +101,72 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.stats_ = None
         self.logbook_ = None
         self.toolbox_ = None
+
+        #Early stopping parameters
+        self.gens_since_improvement = 0
+        self.prev_min_fitness = np.inf
+
+    def eaSimple(self, population, toolbox, cxpb, mutpb, ngen, stats=None,
+             halloffame=None, verbose=__debug__):
+        """
+        This extends the eaSimple() taken from the DEAP library, adding early stopping. All parameters remain the same.
+        """
+        logbook = tools.Logbook()
+        logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in population if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        if halloffame is not None:
+            halloffame.update(population)
+
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen=0, nevals=len(invalid_ind), **record)
+        if verbose:
+            print(logbook.stream)
+
+        # Begin the generational process
+        for gen in range(1, ngen + 1):
+            # Select the next generation individuals
+            offspring = toolbox.select(population, len(population))
+
+            # Vary the pool of individuals
+            offspring = algorithms.varAnd(offspring, toolbox, cxpb, mutpb)
+
+            # Evaluate the individuals with an invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+
+            # Update the hall of fame with the generated individuals
+            if halloffame is not None:
+                halloffame.update(offspring)
+
+            # Replace the current population by the offspring
+            population[:] = offspring
+
+            # Append the current generation statistics to the logbook
+            record = stats.compile(population) if stats else {}
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+            if verbose:
+                print(logbook.stream)
+
+            # Tracks generations since previous improvement
+            if record["fitness"]["min"] < self.gens_since_improvement:
+                self.gens_since_improvement = 0
+            else:
+                self.gens_since_improvement += 1
+
+            # Solution found or stops after significant stagnation - early stopping
+            if record["fitness"]["min"] < 0.0000001 or self.gens_since_improvement >= self.maximum_stagnation:
+                break
+
+        return population, logbook
+
 
     def create_pset(self, n_features):
         """Defines the primitive set based on the defined functions and number of features
@@ -228,7 +295,7 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         self.stats_ = {"fitness_improvements": None}
 
         #Run simple EA
-        self.final_pop_, self.logbook_ = algorithms.eaSimple(self.final_pop_, self.toolbox_, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
+        self.final_pop_, self.logbook_ = self.eaSimple(self.final_pop_, self.toolbox_, self.cxpb, self.mutpb, self.gens, stats=self.mstats,
                                     halloffame=self.hof_, verbose=True)
         
         #Finds minimum fitness per generation
