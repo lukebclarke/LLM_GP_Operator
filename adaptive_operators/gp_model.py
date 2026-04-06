@@ -306,6 +306,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
 
         return math.fsum(sqerrors) / len(X),
 
+    def get_best_operator_designs(self, mutation_designs, crossover_designs):
+        """Finds the best performing mutation and crossover operators based on their calculated score
+
+        Returns:
+            (string, dict), (string, dict): A tuple of design and corresponding statistics for mutation and crossover operator, respectively 
+        """
+        
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y):
@@ -349,6 +356,24 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             self.logbook_ = None
 
         self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.run_adaptive_ea(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
+
+        ###Finds best operator designs###
+
+        #Split lists into separate lists of designs and statistics
+        mutation_designs, mutation_stats = zip(*self.algorithms_.mutation_designs)
+        crossover_designs, crossover_stats = zip(*self.algorithms_.crossover_designs)
+
+        #Finds raw scores
+        mutation_scores = [stats["score"] for stats in mutation_stats]
+        crossover_scores = [stats["score"] for stats in crossover_stats]
+
+        #Finds index of best performing designs
+        best_mut_idx = mutation_scores.index(max(mutation_scores))
+        best_cross_idx = mutation_scores.index(max(crossover_scores))
+
+        #Updates statistics with best designs
+        self.stats_["best_mutation_design"] = self.algorithms_.mutation_designs[best_mut_idx]
+        self.stats_["best_crossover_design"] = self.algorithms_.crossover_designs[best_cross_idx] 
 
         self.is_fitted_ = True
         return self

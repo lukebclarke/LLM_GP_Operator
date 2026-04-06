@@ -182,6 +182,15 @@ def run_problem_instance(problem_name, params, num_runs=10):
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
         fitness_improvement_per_gen_standard = standard_est.stats_["fitness_improvements"]
 
+        best_mutation = ao_est.stats_["best_mutation_design"]
+        best_crossover = ao_est.stats_["best_crossover_design"]
+
+        print("BEST MUTATION DESIGN")
+        print(best_mutation[0])
+        print(f"Success rate: {best_mutation[1]["success_rate"]}")
+        print(f"Average Min Fitness Improv: {best_mutation[1]["min_fitness_improv"]}")
+        print(f"Average Mean Fitness Improv: {best_mutation[1]["avg_fitness_improv"]}")
+
         graph_name = f"/fitness_improvement_run{i}"
         graph_filepath = directory_name + graph_name
         plot_improvement_graph("Fitness Improvement", "Standard", "Adaptive Operator", fitness_improvement_per_gen_standard, fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath)
@@ -242,7 +251,7 @@ def main():
     num_runs = 1
     params = {
         "pop_size": 10, #250
-        "gens": 15,
+        "gens": 10,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,

@@ -102,6 +102,21 @@ class AdaptiveGP():
         current_mutator_design = self.custom_mutate.operator_design
         current_crossover_design = self.custom_crossover.operator_design
 
+        #Tracks statistics for operator design, used to calculate score
+        mutation_stats = {
+            "success_rate": None,
+            "min_fitness_improv": None,
+            "avg_fitness_improv": None,
+            "score": None
+        }
+
+        crossover_stats = {
+            "success_rate": None,
+            "min_fitness_improv": None,
+            "avg_fitness_improv": None,
+            "score": None
+        }
+
         #Success Rate for Mutation
         if self.custom_mutate.total_operator_evals == 0:
             mutator_success_rate = 0
@@ -114,7 +129,6 @@ class AdaptiveGP():
         else:
             crossover_success_rate = (self.custom_crossover.total_operator_evals - self.custom_crossover.total_operator_skips) / (self.custom_crossover.total_operator_evals)
         
-        print(f"Mutation success rate: {mutator_success_rate}")
 
         first_gen = self.redesign_generations[-1]
 
@@ -140,47 +154,74 @@ class AdaptiveGP():
         mean_min_fitness_improv = sum(percent_improvement_min_fitness) / len(percent_improvement_min_fitness)
         mean_avg_fitness_improv = sum(percent_improvement_avg_fitness) / len(percent_improvement_avg_fitness)
 
-        print(f"Min fitness improv: {mean_min_fitness_improv}")
-        print(f"Avg fitness improv: {mean_avg_fitness_improv}")
+        #Updates statistics
+        mutation_stats["success_rate"] = mutator_success_rate
+        crossover_stats["success_rate"] = crossover_success_rate
 
-        mutator_score = (mutator_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
-        crossover_score = (crossover_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
+        mutation_stats["min_fitness_improv"] = mean_min_fitness_improv
+        crossover_stats["min_fitness_improv"] = mean_min_fitness_improv
 
-        print(f"Mutation score: {mutator_score}")
+        mutation_stats["avg_fitness_improv"] = mean_avg_fitness_improv
+        crossover_stats["avg_fitness_improv"] = mean_avg_fitness_improv
+
+        mutation_stats["score"] = (mutator_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
+        crossover_stats["score"] = (crossover_success_rate * mean_min_fitness_improv * mean_avg_fitness_improv)
 
         #Adds design + corresponding score to history
-        self.mutation_designs.append((current_mutator_design, mutator_score))
-        self.crossover_designs.append((current_crossover_design, crossover_score))
+        self.mutation_designs.append((current_mutator_design, mutation_stats))
+        self.crossover_designs.append((current_crossover_design, crossover_stats))
+
+    def get_default_operator_designs(self):
+        """
+        Loads default operator designs from text file to be used as an example for LLM
+        """
+         #Loads default crossover design
+        f = open("docs/default_crossover_design.txt")
+        crossover_design = f.read()
+        f.close()
+
+        f = open("docs/default_mutation_design.txt")
+        mutation_design = f.read()
+        f.close()
+
+        return crossover_design, mutation_design
 
     def get_operator_design(self):
+        """Proportionally selects mutation and crossover designs to feed back into LLM, based on their performance
 
+        Returns:
+            string, string: Mutation and crossover designs, respectively 
+        """
         #Return default designs if the operators have not yet been redesigns
         if not self.redesign_generations:
-            #Loads default crossover design
-            f = open("docs/default_crossover_design.txt")
-            crossover_design = f.read()
-            f.close()
+            return self.get_default_operator_designs()
 
-            f = open("docs/default_mutation_design.txt")
-            mutation_design = f.read()
-            f.close()
+        #Split lists into separate lists of designs and statistics
+        mutation_designs, mutation_stats = zip(*self.mutation_designs)
+        crossover_designs, crossover_stats = zip(*self.crossover_designs)
 
-            return crossover_design, mutation_design
-
-        #Split lists into separate lists of designs and scores
-        mutation_designs, mutation_scores = zip(*self.mutation_designs)
-        crossover_designs, crossover_scores = zip(*self.crossover_designs)
+        #Finds raw scores
+        mutation_scores = [stats["score"] for stats in mutation_stats]
+        crossover_scores = [stats["score"] for stats in mutation_stats]
 
         total_mut_scores = sum(mutation_scores)
         total_cross_scores = sum(crossover_scores)
 
-        # #Calculate probability of each design (based on score)
-        # mutation_probs = [score / total_mut_scores if total_mut_scores > 0 else 0 for score in mutation_scores]
-        # crossover_probs = [score / total_cross_scores if total_cross_scores > 0 else 0 for score in crossover_scores]
-
+        #Falls back to default designs if there are no successful operators
+        if total_mut_scores or total_cross_scores <= 0:
+            default_crossover, default_mutation = self.get_default_operator_designs() 
+        
         #Chooses design proportionally based on associated operator score
-        mutation_design = random.choices(mutation_designs, weights=mutation_scores, k=1)[0]
-        crossover_design = random.choices(crossover_designs, weights=crossover_scores, k=1)[0]
+        if total_mut_scores > 0:
+            mutation_design = random.choices(mutation_designs, weights=mutation_scores, k=1)[0]
+        else:
+            mutation_design = default_mutation
+
+        #Repeats for crossover operator
+        if total_cross_scores > 0:
+            crossover_design = random.choices(crossover_designs, weights=crossover_scores, k=1)[0]
+        else:
+            crossover_design = default_crossover
 
         return mutation_design, crossover_design
 
