@@ -103,8 +103,7 @@ class BaseOperator():
         self.temperature = self.temperature + self.temperature_alpha
 
         #Prevents temperature exceeding 1
-        if self.temperature > 1:
-            self.temperature = 1
+        self.temperature = min(1, self.temperature)
 
     def validate_individual(self, individual):
         """Ensures that an individual is valid (i.e. compatible with DEAP)
