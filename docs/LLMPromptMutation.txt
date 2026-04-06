@@ -34,43 +34,9 @@ Return the mutated individual as: `(mutated_individual,)`. It must be of type gp
 The LLM has freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
 Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
 
-An example mutation method is given below:
+An example well-performing mutation method is given below:
 
-from collections.abc import Sequence
-from itertools import repeat
-from deap import base, creator, tools, gp
-
-mu = 0.0
-sigma = 1.0
-indpb = 0.1
-
-index = random.randrange(len(individual))
-node = individual[index]
-slice_ = individual.searchSubtree(index)
-choice = random.choice
-
-# As we want to keep the current node as children of the new one,
-# it must accept the return value of the current node
-primitives = [p for p in pset.primitives[node.ret] if node.ret in p.args]
-
-if len(primitives) == 0:
-    return individual,
-
-new_node = choice(primitives)
-new_subtree = [None] * len(new_node.args)
-position = choice([i for i, a in enumerate(new_node.args) if a == node.ret])
-
-for i, arg_type in enumerate(new_node.args):
-    if i != position:
-        term = choice(pset.terminals[arg_type])
-        if isclass(term):
-            term = term()
-        new_subtree[i] = term
-
-new_subtree[position:position + 1] = individual[slice_]
-new_subtree.insert(0, new_node)
-individual[slice_] = new_subtree
-return individual,
+INSERT_EXAMPLE_METHOD
         
 Output ONLY valid Python code.
 Do not include explanations, comments, markdown, or analysis.

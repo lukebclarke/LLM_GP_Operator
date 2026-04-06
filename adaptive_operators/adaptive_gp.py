@@ -174,17 +174,17 @@ class AdaptiveGP():
         total_mut_scores = sum(mutation_scores)
         total_cross_scores = sum(crossover_scores)
 
-        #Calculate probability of each design (based on score)
-        mutation_probs = [score / total_mut_scores for score in mutation_scores]
-        crossover_probs = [score / total_cross_scores for score in crossover_scores]
+        # #Calculate probability of each design (based on score)
+        # mutation_probs = [score / total_mut_scores if total_mut_scores > 0 else 0 for score in mutation_scores]
+        # crossover_probs = [score / total_cross_scores if total_cross_scores > 0 else 0 for score in crossover_scores]
 
         #Chooses design proportionally based on associated operator score
-        mutation_design = random.choices(mutation_designs, weights=mutation_probs, k=1)[0]
-        crossover_design = random.choices(crossover_designs, weights=crossover_probs, k=1)[0]
+        mutation_design = random.choices(mutation_designs, weights=mutation_scores, k=1)[0]
+        crossover_design = random.choices(crossover_designs, weights=crossover_scores, k=1)[0]
 
         return mutation_design, crossover_design
 
-    def check_stagnation(self, current_fitness, gen_num, logbook):
+    def check_stagnation(self, current_fitness, gen_num, logbook, history):
         """Checks whether the design of the algorithm is stagnating, and redesigns if so
 
         Args:
@@ -200,20 +200,31 @@ class AdaptiveGP():
         #Updates statistics
         self.fitness_improvements.append(self.prev_min_fitness - current_fitness)
 
+        #There has been an improvement - continue evolution as normal
         if current_fitness < self.prev_min_fitness:
             self.prev_min_fitness = current_fitness
             self.gens_since_improvement = 0
         #There has not been an improvement, but less than k generations have surpassed
         elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement < self.k:
             self.gens_since_improvement += 1
-        #There has not been an improvement in k generations
+        #There has not been an improvement in k generations - redesign operator design
         elif current_fitness >= self.prev_min_fitness and self.gens_since_improvement >= self.k:
             print("Stagnating.... Redesigning...")
+            #Adds operator design to history
             if len(self.redesign_generations) > 0:
                 self.update_operator_history(gen_num, logbook)
+
+            #Selects operator designs to use as example
             crossover_design, mutation_design = self.get_operator_design()
+
+            #Updates prompt to include fitness history and example operator design
+            self.custom_crossover.update_llm_prompt(history, crossover_design)
+            self.custom_mutate.update_llm_prompt(history, mutation_design)
+
+            #Redesigns both operators
             self.custom_crossover.redesign_operator()
             self.custom_mutate.redesign_operator()
+
             self.redesign_generations.append(gen_num)
             self.gens_since_improvement = 0
         else:
@@ -293,10 +304,6 @@ class AdaptiveGP():
             history["max_size"].append(float(record["size"]["max"]))
             history["min_size"].append(float(record["size"]["min"]))
 
-            # Updates LLM prompt with updated logbook
-            self.custom_mutate.update_llm_prompt(history)
-            self.custom_crossover.update_llm_prompt(history)
-
             #Solution found - early stopping
             if record["fitness"]["min"] < 0.00001:
                 break
@@ -309,7 +316,7 @@ class AdaptiveGP():
             self.custom_mutate.num_retries = 0
             self.custom_crossover.num_retries = 0
 
-            self.check_stagnation(min_fitness, gen, logbook)
+            self.check_stagnation(min_fitness, gen, logbook, history)
 
         ao_stats = self.get_stats()
         #TODO: Update operator history at end
