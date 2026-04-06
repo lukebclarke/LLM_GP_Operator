@@ -367,6 +367,7 @@ class AdaptiveGP():
             if self.gens_since_improvement >= self.self_adapt_req:
                 self.custom_mutate.self_adapt_temperature()
                 self.custom_crossover.self_adapt_temperature()
+                self.gens_since_improvement = 0
 
         ao_stats = self.get_stats()
         

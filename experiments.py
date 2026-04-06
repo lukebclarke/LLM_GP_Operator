@@ -272,7 +272,10 @@ def main():
         "mutpb": 0.1,
         "k": 5,
         "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True
+        "verbose": True,
+        "self_adapt_req": 1,
+        "default_temperature": 0.3,
+        "temperature_alpha": 0.1
     }
 
     #Finds all ground truth datasets
