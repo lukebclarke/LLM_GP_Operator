@@ -273,7 +273,7 @@ def main():
         "k": 5,
         "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
         "verbose": True,
-        "self_adapt_req": 1,
+        "self_adapt_req": 5,
         "default_temperature": 0.3,
         "temperature_alpha": 0.1
     }

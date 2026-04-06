@@ -33,7 +33,7 @@ from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
 
 class AdaptiveGP():
-    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, timeout=20):
+    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, maximum_stagnation=15, timeout=20):
         self.n = n
         self.pset = pset
         self.toolbox = toolbox
@@ -72,6 +72,9 @@ class AdaptiveGP():
         #Self-adaptation variables
         self.gens_since_improvement = 0 #Used for self-adaptation
         self.self_adapt_req = self_adapt_req
+        self.temperature_adapted = False
+
+        self.maximum_stagnation = maximum_stagnation
 
     def get_stats(self):
         """Returns stats about the algorithm instance
@@ -272,6 +275,7 @@ class AdaptiveGP():
             self.redesign_generations.append(gen_num)
             self.gens_since_redesign = 0
             self.gens_since_improvement += 1
+            self.temperature_adapted = False
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -350,7 +354,7 @@ class AdaptiveGP():
             history["min_size"].append(float(record["size"]["min"]))
 
             #Solution found - early stopping
-            if record["fitness"]["min"] < 0.00001:
+            if record["fitness"]["min"] < 0.00001 :
                 break
 
             #Each generation, reset the number of local skips each operator is allowed
@@ -364,10 +368,10 @@ class AdaptiveGP():
             self.check_stagnation(min_fitness, gen, logbook, history)
 
             #Self-adapt temperature if there has been no improvement for a certain number of generations (even after redesigns)
-            if self.gens_since_improvement >= self.self_adapt_req:
+            if (self.gens_since_improvement >= self.self_adapt_req) and (self.temperature_adapted == False):
                 self.custom_mutate.self_adapt_temperature()
                 self.custom_crossover.self_adapt_temperature()
-                self.gens_since_improvement = 0
+                self.temperature_adapted = True
 
         ao_stats = self.get_stats()
         
