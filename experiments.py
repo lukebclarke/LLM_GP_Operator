@@ -160,7 +160,7 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
         #Run standard evolutionary algorithm
         print("Running standard EA")
-        standard_est = StandardRegressor(**params)
+        standard_est = StandardRegressor(pop_size=params["pop_size"], gens=params["gens"], max_time=params["max_time"], cxpb=params["cxpb"], mutpb=params["mutpb"], functions=params["functions"], verbose=params["verbose"], random_state=params["random_state"])
         standard_est.fit(X_train, y_train)
 
         #Get fitnesses on testing data

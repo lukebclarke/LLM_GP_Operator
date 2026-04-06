@@ -79,14 +79,13 @@ class StandardRegressor(BaseEstimator, RegressorMixin):
         "random_state": [int]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], k=3, verbose=True, random_state=None):
+    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, random_state=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
         self.cxpb = cxpb
         self.mutpb = mutpb
         self.functions = functions
-        self.k = k
         self.verbose = verbose
         self.random_state = random_state
 
