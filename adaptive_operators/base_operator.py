@@ -101,7 +101,10 @@ class BaseOperator():
     def self_adapt_temperature(self):
         """Increases the temperature to improve diversity"""
         self.temperature = self.temperature + self.temperature_alpha
-        print(f"Temperature: {self.temperature}")
+
+        #Prevents temperature exceeding 1
+        if self.temperature > 1:
+            self.temperature = 1
 
     def validate_individual(self, individual):
         """Ensures that an individual is valid (i.e. compatible with DEAP)
