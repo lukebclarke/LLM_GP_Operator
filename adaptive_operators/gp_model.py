@@ -366,7 +366,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.final_pop_, self.logbook_, self.hof_, self.stats_ = self.algorithms_.run_adaptive_ea(self.cxpb, self.mutpb, self.gens, verbose=self.verbose)
 
         ###Finds best operators designs###
-        
+
         if self.algorithms_.mutation_designs:
             #Split lists into separate lists of designs and statistics
             mutation_designs, mutation_stats = zip(*self.algorithms_.mutation_designs)
@@ -406,5 +406,4 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
 
         #TODO: Check line
         # X = self._validate_params(X)
-        print(func)
         return np.array([func(*row) for row in X])
