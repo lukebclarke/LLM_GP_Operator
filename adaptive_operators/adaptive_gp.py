@@ -271,15 +271,23 @@ class AdaptiveGP():
         #Updates statistics
         self.fitness_improvements.append(self.prev_min_fitness - current_fitness)
 
+        #Updates improvement tracking (to allow for early termination after stagnation)
+        if current_fitness < self.prev_min_fitness:
+            self.gens_since_improvement = 0
+        else:
+            self.gens_since_improvement += 1
+
+        #Only continue if an LLM model is passed
+        if self.model is None:
+            return
+
         #There has been an improvement - continue evolution as normal
         if current_fitness < self.prev_min_fitness:
             self.prev_min_fitness = current_fitness
             self.gens_since_redesign = 0
-            self.gens_since_improvement = 0
         #There has not been an improvement, but less than k generations have surpassed
         elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign < self.k:
             self.gens_since_redesign += 1
-            self.gens_since_improvement += 1
         #There has not been an improvement in k generations - redesign operator design
         elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign >= self.k:
             print("Stagnating.... Redesigning...")
@@ -300,7 +308,6 @@ class AdaptiveGP():
 
             self.redesign_generations.append(gen_num)
             self.gens_since_redesign = 0
-            self.gens_since_improvement += 1
             self.temperature_adapted = False
         else:
             raise Exception("Error tracking fitnesses")

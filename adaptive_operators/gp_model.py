@@ -90,13 +90,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "mutpb": [float],
         "k": [int],
         "self_adapt_req": [int, None],
-        "default_temperature": [float],
-        "temperature_alpha": [float],
+        "default_temperature": [float, None],
+        "temperature_alpha": [float, None],
         "maximum_stagnation": [int],
         "functions": [list],
         "verbose": [bool],
         "random_state": [int],
-        "model": [str],
+        "model": [str, None],
         "reasoning_model": [bool]
     }
 
@@ -236,7 +236,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         """
         Deletes/shutdowns the sandbox
         """
-        self.sandbox.delete()
+        if self.sandbox:
+            self.sandbox.delete()
 
     def create_pset(self, n_features):
         """Defines the primitive set based on the defined functions and number of features
