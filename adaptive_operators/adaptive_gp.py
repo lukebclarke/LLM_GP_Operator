@@ -88,8 +88,11 @@ class AdaptiveGP():
         stats["num_mutation_redesigns"] = self.custom_mutate.total_num_redesigns
 
         #Adds extra generation at start with no value
-        self.fitness_improvements[0] = np.nan
-        stats["fitness_improvements"] = self.fitness_improvements
+        if self.fitness_improvements:
+            self.fitness_improvements[0] = np.nan
+            stats["fitness_improvements"] = self.fitness_improvements
+        else:
+            stats["fitness_improvements"] = []
 
         #Tracks which generations we redesign the operators on
         stats["redesign_generations"] = self.redesign_generations
@@ -367,10 +370,6 @@ class AdaptiveGP():
             history["max_size"].append(float(record["size"]["max"]))
             history["min_size"].append(float(record["size"]["min"]))
 
-            #Solution found or stops after significant stagnation - early stopping
-            if record["fitness"]["min"] < 0.0000001 or self.gens_since_improvement >= self.maximum_stagnation:
-                break
-
             #Each generation, reset the number of local skips each operator is allowed
             self.custom_mutate.local_skips = 0
             self.custom_crossover.local_skips = 0
@@ -384,6 +383,10 @@ class AdaptiveGP():
             #Continues to next generation without adapting temperature, if feature is disabled
             if self.self_adapt_req == None:
                 continue
+
+            #Solution found or stops after significant stagnation - early stopping
+            if record["fitness"]["min"] < 0.0000001 or self.gens_since_improvement >= self.maximum_stagnation:
+                break
 
             #Self-adapt temperature if there has been no improvement for a certain number of generations (even after redesigns)
             if (self.gens_since_improvement >= self.self_adapt_req) and (self.temperature_adapted == False):
