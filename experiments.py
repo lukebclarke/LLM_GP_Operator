@@ -11,6 +11,7 @@ import os
 import random
 import math
 import shutil
+import time
 
 from deap import algorithms
 from deap import base
@@ -147,7 +148,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
     crossover_similarities = []
     mutation_similarities = []
 
+    execution_times = []
+    n_evals = []
+
     for i in range(num_runs):
+        
         #Deletes temp folder if already exists
         if os.path.exists("temp"):
             shutil.rmtree("temp")
@@ -162,13 +167,16 @@ def run_problem_instance(problem_name, params, num_runs=10):
         
         #TODO: Prevent this from crashing altogether
         for i in range(10):
+            start_time = time.time()
+
             #Run adaptive evolutionary algorithm without re-initialising sanbdox
             try:
                 ao_est = AdaptiveRegressor(**params)
                 ao_est.fit(X_train, y_train)
+                end_time = time.time()
                 break
             except MaximumNumberRetries:
-                continue
+                continue            
 
         ao_est.shutdown_sandbox()
 
@@ -214,6 +222,13 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
         if best_crossover_design:
             best_crossover_designs.append(best_crossover_design)
+
+        #Time Elapsed
+        elapsed_time = end_time - start_time
+        execution_times.append(elapsed_time)
+
+        #Number of evaluations
+        n_evals.append(ao_est.stats_["n_evals"])
 
         #Generates graphs
         graph_name = f"/fitness_improvement_run{i}"
@@ -269,7 +284,6 @@ def run_problem_instance(problem_name, params, num_runs=10):
     print(f"Mutation similarity: {avg_mutation_similarity}")
     print(f"Crossover similarity: {avg_crossover_similarity}")
     log.write("\n")
-    log.write("\n")
     log.write(f"Mutation similarity: {avg_mutation_similarity}\n")
     log.write(f"Crossover similarity: {avg_crossover_similarity}\n")
 
@@ -279,11 +293,22 @@ def run_problem_instance(problem_name, params, num_runs=10):
     print(f"Minimum Testing Fitness (Standard Operator): {min(all_fit_testing_ea)}")
     print(f"Minimum Testing Fitness (Adaptive Operator): {min(all_fit_testing_ao)}")
     log.write("\n")
-    log.write("\n")
     log.write(f"Average Testing Fitness (Standard Operator): {np.mean(all_fit_testing_ea)}\n")
     log.write(f"Average Testing Fitness (Adaptive Operator): {np.mean(all_fit_testing_ao)}\n")
     log.write(f"Minimum Testing Fitness (Standard Operator): {min(all_fit_testing_ea)}\n")
     log.write(f"Minimum Testing Fitness (Adaptive Operator): {min(all_fit_testing_ao)}\n")
+
+    #Find average execution time
+    average_exec_time = sum(execution_times) / len(execution_times)
+    print(f"Average execution time: {average_exec_time}")
+    log.write("\n")
+    log.write(f"Average execution time: {average_exec_time}")
+
+    #Find average number of evaluations
+    average_n_evals = sum(n_evals) / len(n_evals)
+    print(f"Average number of evaluations: {average_n_evals}")
+    log.write("\n")
+    log.write(f"Average number of evaluations: {average_n_evals}")
 
     #Find overall best operator designs
     if best_mutation_designs:

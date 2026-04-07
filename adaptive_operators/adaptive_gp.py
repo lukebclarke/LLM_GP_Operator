@@ -61,6 +61,7 @@ class AdaptiveGP():
         self.mstats.register("max", numpy.max)
         self.fitness_improvements = []
         self.redesign_generations = []
+        self.n_evals = 0
 
         #Operator design statistics
         self.mutation_designs = []
@@ -101,8 +102,12 @@ class AdaptiveGP():
         stats["crossover_designs"] = self.crossover_designs
         stats["mutation_designs"] = self.mutation_designs
 
+        #Tracks similarity between operator designs
         stats["crossover_similarity"] = get_similarity("temp/crossover_designs")
         stats["mutation_similarity"] = get_similarity("temp/mutation_designs")
+
+        #Tracks number of evaluations
+        stats["n_evals"] = self.n_evals
 
         return stats
 
@@ -360,6 +365,9 @@ class AdaptiveGP():
             logbook.record(gen=gen, nevals=len(invalid_ind), **record)
             if verbose:
                 print(logbook.stream)
+
+            #Tracks total number of evaluations
+            self.n_evals += len(invalid_ind)
 
             min_fitness = record['fitness']['min']
 
