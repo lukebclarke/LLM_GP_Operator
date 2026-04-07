@@ -113,6 +113,20 @@ class AdaptiveGP():
         #Tracks whether problem is solved
         stats["solved"] = self.solved_
 
+        crossover_effectiveness = False
+        mutation_effectiveness = False
+        #Finds how effective redesign was (i.e. what proportions redesigns were valid)
+        if self.custom_crossover.total_num_redesigns > 0:
+            crossover_effectiveness = self.custom_crossover.effective_redesigns / self.custom_crossover.total_num_redesigns
+
+        if self.custom_mutate.total_num_redesigns > 0:
+            mutation_effectiveness = self.custom_mutate.effective_redesigns / self.custom_mutate.total_num_redesigns
+            
+        if crossover_effectiveness or mutation_effectiveness:
+            stats["redesign_success_rate"] = (crossover_effectiveness + mutation_effectiveness) / 2
+        else:
+            stats["redesign_success_rate"] = 0
+
         return stats
 
     def update_operator_history(self, current_gen, logbook):
@@ -291,6 +305,11 @@ class AdaptiveGP():
         #There has not been an improvement in k generations - redesign operator design
         elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign >= self.k:
             print("Stagnating.... Redesigning...")
+            
+            #Records number of effective redesigns
+            self.custom_crossover.effective_redesigns += 1
+            self.custom_mutate.effective_redesigns += 1
+
             #Adds operator design to history
             if len(self.redesign_generations) > 0:
                 self.update_operator_history(gen_num, logbook)

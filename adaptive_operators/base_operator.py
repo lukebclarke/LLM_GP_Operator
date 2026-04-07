@@ -65,6 +65,10 @@ class BaseOperator():
         self.timeout=40
         self.max_timeout_retries = 10
 
+        #Tracks how many redesigns are effective/ineffective
+        self.effective_redesigns = 0
+
+        #Temperature Self-Adaptation
         self.temperature = default_temperature
         self.temperature_alpha = temperature_alpha
 
