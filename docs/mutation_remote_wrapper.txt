@@ -2,13 +2,13 @@ with open("error.txt", "w") as f:
     f.write("Mutation execution started...\n")
 
 try: 
-INSERT_METHOD_DEFINITION_HERE
-
     import os
     import pickle
     from deap import base, creator, tools, gp
     import gp_primitives
     import random
+
+INSERT_METHOD_DEFINITION_HERE
 
     #Load pickled objects
     with open("pset.pkl", "rb") as f:
