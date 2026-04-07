@@ -1,6 +1,7 @@
 from adaptive_operators.gp_model import AdaptiveRegressor
 from standard_operators.gp_model import StandardRegressor
 from adaptive_operators.base_operator import MaximumNumberRetries
+from util import get_similarity
 
 from pmlb import fetch_data
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import pandas as pd
 import os 
 import random
 import math
+import shutil
 
 from deap import algorithms
 from deap import base
@@ -141,6 +143,9 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
     best_mutation_designs = []
     best_crossover_designs = []
+    
+    crossover_similarities = []
+    mutation_similarities = []
 
     for i in range(num_runs):
         #Defines random seed
@@ -171,34 +176,43 @@ def run_problem_instance(problem_name, params, num_runs=10):
         all_fit_testing_ea.append(np.mean((standard_test - y_test) ** 2))
         all_fit_testing_ao.append(np.mean((ao_test - y_test) ** 2))
 
-        #Update statistics
+        #Finds average size and minimum fitness for traditional EA
         all_size_avg_ea.append(standard_est.logbook_.chapters["size"].select("avg"))
         all_fit_min_ea.append(standard_est.logbook_.chapters["fitness"].select("min"))
 
+        #Finds average size and minimum fitness for adaptive EA
         all_size_avg_ao.append(ao_est.logbook_.chapters["size"].select("avg"))
         all_fit_min_ao.append(ao_est.logbook_.chapters["fitness"].select("min"))
 
+        #Finds the number of operator redesigns (for mutation and crossover)
         num_mutation_redesigns.append(ao_est.stats_["num_mutation_redesigns"])
         num_crossover_redesigns.append(ao_est.stats_["num_crossover_redesigns"])
+
+        #Finds the similarity between operator designs (for mutation and crossover)
+        mutation_similarities.append(ao_est.stats_["mutation_similarity"])
+        crossover_similarities.append(ao_est.stats_["crossover_similarity"])
 
         redesign_gens = ao_est.stats_["redesign_generations"]
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
         fitness_improvement_per_gen_standard = standard_est.stats_["fitness_improvements"]
 
+        #Finds the best operator designs in the run (for mutation and crossover)
         best_mutation_design = ao_est.stats_["best_mutation_design"]
         best_crossover_design = ao_est.stats_["best_crossover_design"]
+
         if best_mutation_design:
-            best_mutation_designs.append()
+            best_mutation_designs.append(best_mutation_design)
 
         if best_crossover_design:
-            best_crossover_designs.append()
+            best_crossover_designs.append(best_crossover_design)
 
+        #Generates graphs
         graph_name = f"/fitness_improvement_run{i}"
         graph_filepath = directory_name + graph_name
         plot_improvement_graph("Fitness Improvement", "Standard", "Adaptive Operator", fitness_improvement_per_gen_standard, fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath)
         plot_improvement_graph_solo("Fitness Improvement", fitness_improvement_per_gen_ao, redesign_gens, filepath=graph_filepath + "_solo")
 
-        #Write to logbook
+        #Writes logbook to file
         log.write("Running standard algorithm...\n")
         log.write("\n")
         log.write(str(standard_est.logbook_))
@@ -223,6 +237,20 @@ def run_problem_instance(problem_name, params, num_runs=10):
     log.write("\n")
     log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
     log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
+
+    #Similarity scores
+    if mutation_similarities:
+        avg_mutation_similarity = sum(mutation_similarities) / len(mutation_similarities)
+
+    if crossover_similarities:
+        avg_crossover_similarity = sum(crossover_similarities) / len(crossover_similarities)
+
+    print(f"Mutation similarity: {avg_mutation_similarity}")
+    print(f"Crossover similarity: {avg_crossover_similarity}")
+    log.write("\n")
+    log.write("\n")
+    log.write(f"Mutation similarity: {avg_mutation_similarity}\n")
+    log.write(f"Crossover similarity: {avg_crossover_similarity}\n")
 
     #Results on testing data
     print(f"Average Testing Fitness (Standard Operator): {np.mean(all_fit_testing_ea)}")
@@ -270,21 +298,22 @@ def main():
 
     problem_list = "problems/ground_truth.txt"
     num_runs = 1
+    num_problems = 1
     params = {
         "pop_size": 10, #250
-        "gens": 15,
+        "gens": 10,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
-        "k": 5,
+        "k": 2,
         "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
         "verbose": True,
         "self_adapt_req": 5,
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
         "maximum_stagnation": 10,
-        "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        "reasoning_model": False
+        "model": "openai/gpt-oss-120b",
+        "reasoning_model": True
     }
 
     #Finds all ground truth datasets
@@ -292,7 +321,16 @@ def main():
         problems = [line.strip() for line in f if line.strip()]
 
     #Chooses 10 random problems
-    datasets = random.sample(problems, 10)
+    datasets = random.sample(problems, num_problems)
+
+    #Deletes temp folder if already exists
+    if os.path.exists("temp"):
+        shutil.rmtree("temp")
+
+    #Create fresh temp folder (and sub-folders)
+    os.makedirs("temp")
+    os.makedirs("temp/mutation_designs")
+    os.makedirs("temp/crossover_designs")
 
     for problem in datasets:
         run_problem_instance(problem, params, num_runs=num_runs)

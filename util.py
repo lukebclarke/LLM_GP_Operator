@@ -88,6 +88,9 @@ def clean_llm_output(output):
 def get_similarity(folder_path):
     #Gets all files in directory
     files = os.listdir(folder_path)
+
+    if len(files) <= 1:
+        return None
     
     #Finds all combinations of files
     combos = list(combinations(files, 2))

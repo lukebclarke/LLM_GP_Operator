@@ -383,7 +383,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
 
             #Finds index of best performing designs
             best_mut_idx = mutation_scores.index(max(mutation_scores))
-            best_cross_idx = mutation_scores.index(max(crossover_scores))
+            best_cross_idx = crossover_scores.index(max(crossover_scores))
 
             #Updates statistics with best designs
             self.stats_["best_mutation_design"] = self.algorithms_.mutation_designs[best_mut_idx]

@@ -31,6 +31,7 @@ import subprocess
 #Files
 from adaptive_operators.custom_mutation import CustomMutation
 from adaptive_operators.custom_crossover import CustomCrossover
+from util import get_similarity
 
 class AdaptiveGP():
     def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, maximum_stagnation=15, timeout=20):
@@ -96,6 +97,9 @@ class AdaptiveGP():
         #Tracks all operator designs
         stats["crossover_designs"] = self.crossover_designs
         stats["mutation_designs"] = self.mutation_designs
+
+        stats["crossover_similarity"] = get_similarity("temp/crossover_designs")
+        stats["mutation_similarity"] = get_similarity("temp/mutation_designs")
 
         return stats
 
@@ -177,6 +181,16 @@ class AdaptiveGP():
         #Adds design + corresponding score to history
         self.mutation_designs.append((current_mutator_design, mutation_stats))
         self.crossover_designs.append((current_crossover_design, crossover_stats))
+
+        #Adds to folder (so we can compute similarity at end)
+        mut_filepath = f"temp/mutation_designs/design{len(self.mutation_designs)}.py"
+        cross_filepath = f"temp/crossover_designs/design{len(self.crossover_designs)}.py"
+
+        with open(mut_filepath, "w") as f:
+            f.write(current_mutator_design)
+        
+        with open(cross_filepath, "w") as f:
+            f.write(current_crossover_design)
 
     def get_default_operator_designs(self):
         """
