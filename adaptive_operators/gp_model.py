@@ -117,7 +117,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.maximum_stagnation = maximum_stagnation
 
         self.model = model
-        self.reasoning_model = False
+        self.reasoning_model = reasoning_model
 
         #Seeds run
         if not self.random_state:

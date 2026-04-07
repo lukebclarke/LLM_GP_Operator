@@ -283,7 +283,7 @@ def main():
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
         "maximum_stagnation": 10,
-        "model": "Qwen/Qwen3-Coder-Next-FP8",
+        "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
         "reasoning_model": False
     }
 

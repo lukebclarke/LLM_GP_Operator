@@ -175,21 +175,20 @@ class BaseOperator():
         """
         try:
             response = self.llm_client.chat.completions.create(
-                model="MiniMaxAI/MiniMax-M2.5",
+                model=self.llm_model,
                 temperature=self.temperature,
                 messages=[
                 {"role": "system", "content": "You provide Python code to be directly executed out-of-the-box. Return only raw Python code, do not include any additional text/explanations in your response."},
                 {
                     "role": "user",
-                    "content": self.llm_prompt
+                    "content": self.llm_prompt,
                 }
                 ],
-                stream=False,
+                reasoning={"enabled": False},
                 max_tokens=2000,
             )
-                
             code = response.choices[0].message.content
-                    
+
             results["code"] = code
             results["exception"] = False
             
@@ -223,9 +222,9 @@ class BaseOperator():
                 if t.is_alive() or results["exception"] == True:
                     results["exception"] = False
                     raise Exception
-
+                
                 return results["code"]
-
+        
             except Exception:
                 #Wait before retrying
                 time.sleep(1)
@@ -255,6 +254,8 @@ class BaseOperator():
 
             code = self.prompt_llm()
 
+            "Generated code"
+
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
                 break
@@ -281,7 +282,6 @@ class BaseOperator():
         Returns:
             [gp.Individual]: The offspring of the operation
         """
-
         #Pickles objects - enables transfer to sandbox environment
         for i in range(self.num_parents):
             pickle_object(individuals[i], f"individual{i}")
