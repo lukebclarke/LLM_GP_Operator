@@ -240,9 +240,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
     #Similarity scores
     if mutation_similarities:
+        cleaned_similarities = [s for s in mutation_similarities if s is not None]
         avg_mutation_similarity = sum(mutation_similarities) / len(mutation_similarities)
 
     if crossover_similarities:
+        cleaned_similarities = [s for s in crossover_similarities if s is not None]
         avg_crossover_similarity = sum(crossover_similarities) / len(crossover_similarities)
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
@@ -301,7 +303,7 @@ def main():
     num_problems = 1
     params = {
         "pop_size": 10, #250
-        "gens": 10,
+        "gens": 15,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
