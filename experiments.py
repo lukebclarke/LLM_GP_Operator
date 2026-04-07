@@ -247,14 +247,24 @@ def run_problem_instance(problem_name, params, num_runs=10):
     log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
     log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
 
-    #Similarity scores
+    #Mutation similarity score
     if mutation_similarities:
+        #Remove runs with empty similarity scores
         cleaned_similarities = [s for s in mutation_similarities if s is not None]
-        avg_mutation_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
+
+        if cleaned_similarities:
+            avg_mutation_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
+        else:
+            avg_mutation_similarity = None
 
     if crossover_similarities:
+        #Remove runs with empty similarity scores
         cleaned_similarities = [s for s in crossover_similarities if s is not None]
-        avg_crossover_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
+
+        if cleaned_similarities:
+            avg_crossover_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
+        else:
+            avg_crossover_similarity = None
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
     print(f"Crossover similarity: {avg_crossover_similarity}")
