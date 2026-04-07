@@ -597,7 +597,7 @@ def main():
     datasets = random.sample(problems, num_problems)
 
     for problem in datasets:
-        run_problem_instance(problem, standard_params, "Traditional", num_runs=num_runs)
+        run_problem_instance(problem, adaptive_params, "GPT", num_runs=num_runs)
     
 if __name__ == "__main__":
     main() 

@@ -278,7 +278,7 @@ class AdaptiveGP():
             self.gens_since_improvement += 1
 
         #Only continue if an LLM model is passed
-        if self.model is None:
+        if self.client is None:
             return
 
         #There has been an improvement - continue evolution as normal

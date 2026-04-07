@@ -125,13 +125,18 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             np.random.seed(self.random_state)
 
         #Setup LLM client
-        load_dotenv()
-        self.client = self.setup_llm()
+        if self.model:
+            load_dotenv()
+            self.client = self.setup_llm()
+            self.sandbox = None
+            self.custom_mutate = None
+            self.custom_crossover = None
+        else:
+            self.client = None
+            self.sandbox = None
+
         self.pset = None
-        self.sandbox = None
         self.toolbox = None
-        self.custom_mutate = None
-        self.custom_crossover = None
 
         #Variables accessed after fitting
         self.final_pop_ = None
@@ -354,7 +359,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             self.pset = self.create_pset(n_features)
 
         #Initialises Daytona client
-        if not self.sandbox:
+        if not self.sandbox and self.model:
             self.setup_daytona(max_attempts=10)
 
         self.create_toolbox(X, y)
