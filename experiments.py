@@ -148,6 +148,15 @@ def run_problem_instance(problem_name, params, num_runs=10):
     mutation_similarities = []
 
     for i in range(num_runs):
+        #Deletes temp folder if already exists
+        if os.path.exists("temp"):
+            shutil.rmtree("temp")
+
+        #Create fresh temp folder (and sub-folders)
+        os.makedirs("temp")
+        os.makedirs("temp/mutation_designs")
+        os.makedirs("temp/crossover_designs")
+
         #Defines random seed
         params["random_state"] = 42 + i
         
@@ -324,15 +333,6 @@ def main():
 
     #Chooses 10 random problems
     datasets = random.sample(problems, num_problems)
-
-    #Deletes temp folder if already exists
-    if os.path.exists("temp"):
-        shutil.rmtree("temp")
-
-    #Create fresh temp folder (and sub-folders)
-    os.makedirs("temp")
-    os.makedirs("temp/mutation_designs")
-    os.makedirs("temp/crossover_designs")
 
     for problem in datasets:
         run_problem_instance(problem, params, num_runs=num_runs)
