@@ -13,6 +13,8 @@ import math
 import shutil
 import time
 
+import scipy.stats as stats
+
 from deap import algorithms
 from deap import base
 from deap import creator
@@ -88,6 +90,27 @@ def plot_improvement_graph_solo(metric_name, values, redesign_generations, filep
     else:
         plt.show()
 
+def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
+    """Performs Wilcoxon Signed Rank Test
+
+    Args:
+        alg1_fitnesses ([float]): Fitnesses to be compared from algorithm 1
+        alg2_fitnesses ([float]): Fitnesses to be compared from algorithm 1
+        alpha (float): The significance value
+
+    Returns:
+        float, float, bool: The p-value, the test statistic, and a boolean representing whether there is a significant difference between the algorithms
+    """
+    stat, p_value = stats.wilcoxon(alg1_fitnesses, alg2_fitnesses)
+
+    print("Wilcoxon Signed Rank Test Statistic:", stat)
+    print("p-value:", p_value)
+
+    diff = False
+    if p_value < alpha:
+        diff = True
+
+    return stat, p_value, diff
 
 def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2, filepath=None):
     xdata1 = list(range(0, len(metric_values1), 1))
@@ -116,14 +139,8 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     X, Y = fetch_data(problem_name, return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
-    #Make directory for results
-    directory_name = f"results/{problem_name}"
-    try:
-        os.mkdir(directory_name)
-    except FileExistsError:
-        pass
-
     #Make for model within results
+    directory_name = f"results/{problem_name}"
     directory_name = f"{directory_name}/{model_name}"
     try:
         os.mkdir(directory_name)
@@ -146,6 +163,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     execution_times = []
     n_evals = []
     solved = []
+    final_stats = {}
 
     for i in range(num_runs):
         
@@ -260,11 +278,13 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     log.write(f"Crossover similarity: {avg_crossover_similarity}\n")
 
     #Results on testing data
-    print(f"Average Testing Fitness: {np.mean(all_fit_testing)}")
-    print(f"Minimum Testing Fitness: {min(all_fit_testing)}")
+    avg_testing_fitness = np.mean(all_fit_testing)
+    min_testing_fitness = min(all_fit_testing)
+    print(f"Average Testing Fitness: {avg_testing_fitness}")
+    print(f"Minimum Testing Fitness: {min_testing_fitness}")
     log.write("\n")
-    log.write(f"Average Testing Fitness (Standard Operator): {np.mean(all_fit_testing)}\n")
-    log.write(f"Minimum Testing Fitness (Standard Operator): {min(all_fit_testing)}\n")
+    log.write(f"Average Testing Fitness (Standard Operator): {avg_testing_fitness}\n")
+    log.write(f"Minimum Testing Fitness (Standard Operator): {min_testing_fitness}\n")
 
     #Find average execution time
     average_exec_time = sum(execution_times) / len(execution_times)
@@ -285,9 +305,10 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     log.write(f"Percent of problems solved: {solves_percent}")
 
     #Find success rate of designs
-    print(f"Redesign success rate: {ao_est.stats_["redesign_success_rate"]}")
+    redesign_success_rate = ao_est.stats_["redesign_success_rate"]
+    print(f"Redesign success rate: {redesign_success_rate}")
     log.write("\n")
-    log.write(f"Redesign success rate: {ao_est.stats_["redesign_success_rate"]}")
+    log.write(f"Redesign success rate: {redesign_success_rate}")
 
     #Find overall best operator designs
     if best_mutation_designs:
@@ -308,7 +329,45 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
         crossover_design_file.write(f"Mean Average Fitness Improvement: {best_crossover_stats["avg_fitness_improv"]}\n")
         crossover_design_file.write(f"\nOperator Design:\n{best_crossover_design}")
 
+    #Update Final Stats
+    final_stats["mutation_redesigns"] = avg_redesigns_mut
+    final_stats["crossover_redesigns"] = avg_redesigns_cx
+    final_stats["mutation_similarity"] = avg_mutation_similarity
+    final_stats["crossover_similarity"] = avg_crossover_similarity
+    final_stats["min_testing_fitness"] = min_testing_fitness
+    final_stats["avg_testing_fitness"] = avg_testing_fitness
+    final_stats["avg_execution_time"] = average_exec_time
+    final_stats["avg_n_evals"] = average_n_evals
+    final_stats["solved_percent"] = solves_percent
+    final_stats["redesign_success_rate"] = redesign_success_rate
+
     log.close()
+
+    return final_stats
+
+def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10):
+    for problem in dataset:
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        traditional_stats = run_problem_instance(problem, alg1_params, alg1_name, num_runs=num_runs)
+        adaptive_stats = run_problem_instance(problem, alg2_params, alg2_name, num_runs=num_runs)
+
+        p_value, test_statistic, diff = statistical_testing(traditional_stats["min_testing_fitness"], adaptive_stats["min_testing_fitness"], 0.05)
+
+
+        log = open(f"{directory_name}/{alg1_name}__{alg2_name}.txt", "w")
+        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
+        if diff:
+            print("Reject the null hypothesis: There is a significant difference between the two samples.")
+            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
+        else:
+            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
+            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
 
 def main():
     #Parameters
@@ -360,8 +419,7 @@ def main():
     #Chooses 10 random problems
     datasets = random.sample(problems, num_problems)
 
-    for problem in datasets:
-        run_problem_instance(problem, adaptive_params, "Traditional", num_runs=num_runs)
+    compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
     
 if __name__ == "__main__":
     main() 
