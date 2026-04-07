@@ -50,6 +50,7 @@ class AdaptiveGP():
         #Initialises population
         self.pop = self.toolbox.population(n=n)
         self.hof = tools.HallOfFame(1) #We track 1 best solution
+        self.solved_ = False
 
         #Track statistics
         stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
@@ -108,6 +109,9 @@ class AdaptiveGP():
 
         #Tracks number of evaluations
         stats["n_evals"] = self.n_evals
+
+        #Tracks whether problem is solved
+        stats["solved"] = self.solved_
 
         return stats
 
@@ -392,8 +396,13 @@ class AdaptiveGP():
             if self.self_adapt_req == None:
                 continue
 
-            #Solution found or stops after significant stagnation - early stopping
-            if record["fitness"]["min"] < 0.0000001 or self.gens_since_improvement >= self.maximum_stagnation:
+            #Solution found - early stopping
+            if record["fitness"]["min"] < 0.0000001:
+                self.solved_ = True
+                break
+
+            #Stops after significant stagnation - early stopping
+            if self.gens_since_improvement >= self.maximum_stagnation:
                 break
 
             #Self-adapt temperature if there has been no improvement for a certain number of generations (even after redesigns)

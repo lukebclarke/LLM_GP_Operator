@@ -151,6 +151,9 @@ def run_problem_instance(problem_name, params, num_runs=10):
     execution_times = []
     n_evals = []
 
+    solved_ea = []
+    solved_ao = []
+
     for i in range(num_runs):
         
         #Deletes temp folder if already exists
@@ -181,8 +184,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
         ao_est.shutdown_sandbox()
 
         #Run standard evolutionary algorithm
+        standard_params = params
+        standard_params["k"] = 1000
         print("Running standard EA")
-        standard_est = StandardRegressor(pop_size=params["pop_size"], gens=params["gens"], max_time=params["max_time"], cxpb=params["cxpb"], mutpb=params["mutpb"], functions=params["functions"], verbose=params["verbose"], random_state=params["random_state"], maximum_stagnation=params["maximum_stagnation"])
+        standard_est = AdaptiveRegressor(**standard_params)
+        # standard_est = StandardRegressor(pop_size=params["pop_size"], gens=params["gens"], max_time=params["max_time"], cxpb=params["cxpb"], mutpb=params["mutpb"], functions=params["functions"], verbose=params["verbose"], random_state=params["random_state"], maximum_stagnation=params["maximum_stagnation"])
         standard_est.fit(X_train, y_train)
 
         #Get fitnesses on testing data
@@ -229,6 +235,10 @@ def run_problem_instance(problem_name, params, num_runs=10):
 
         #Number of evaluations
         n_evals.append(ao_est.stats_["n_evals"])
+
+        #Determines if problem has been solved
+        solved_ea.append(standard_est.stats_["solved"])
+        solved_ao.append(ao_est.stats_["solved"])
 
         #Generates graphs
         graph_name = f"/fitness_improvement_run{i}"
@@ -309,6 +319,15 @@ def run_problem_instance(problem_name, params, num_runs=10):
     print(f"Average number of evaluations: {average_n_evals}")
     log.write("\n")
     log.write(f"Average number of evaluations: {average_n_evals}")
+
+    #Finds percent of problems solved
+    ao_solves_percent = solved_ao.count(True) / len(solved_ao)
+    standard_solves_percent = solved_ea.count(True) / len(solved_ea)
+    print(f"Percent of problems solved (Traditional): {standard_solves_percent}")
+    print(f"Percent of problems solved (Adaptive): {ao_solves_percent}")
+    log.write("\n")
+    log.write(f"Percent of problems solved (Traditional): {standard_solves_percent}")
+    log.write(f"Percent of problems solved (Adaptive): {ao_solves_percent}")
 
     #Find overall best operator designs
     if best_mutation_designs:
