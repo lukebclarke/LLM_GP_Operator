@@ -381,6 +381,10 @@ class AdaptiveGP():
 
             self.check_stagnation(min_fitness, gen, logbook, history)
 
+            #Continues to next generation without adapting temperature, if feature is disabled
+            if self.self_adapt_req == None:
+                continue
+
             #Self-adapt temperature if there has been no improvement for a certain number of generations (even after redesigns)
             if (self.gens_since_improvement >= self.self_adapt_req) and (self.temperature_adapted == False):
                 self.custom_mutate.self_adapt_temperature()

@@ -312,14 +312,14 @@ def main():
     num_problems = 1
     params = {
         "pop_size": 10, #250
-        "gens": 15,
+        "gens": 10,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.8,
         "mutpb": 0.1,
-        "k": 2,
+        "k": 5,
         "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
         "verbose": True,
-        "self_adapt_req": 5,
+        "self_adapt_req": None, #Can be set to None (5 works well)
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
         "maximum_stagnation": 10,

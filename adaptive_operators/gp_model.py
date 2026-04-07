@@ -89,7 +89,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "cxpb": [float],
         "mutpb": [float],
         "k": [int],
-        "self_adapt_req": [int],
+        "self_adapt_req": [int, None],
         "default_temperature": [float],
         "temperature_alpha": [float],
         "maximum_stagnation": [int],
