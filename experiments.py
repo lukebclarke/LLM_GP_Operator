@@ -250,11 +250,11 @@ def run_problem_instance(problem_name, params, num_runs=10):
     #Similarity scores
     if mutation_similarities:
         cleaned_similarities = [s for s in mutation_similarities if s is not None]
-        avg_mutation_similarity = sum(mutation_similarities) / len(mutation_similarities)
+        avg_mutation_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
 
     if crossover_similarities:
         cleaned_similarities = [s for s in crossover_similarities if s is not None]
-        avg_crossover_similarity = sum(crossover_similarities) / len(crossover_similarities)
+        avg_crossover_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
     print(f"Crossover similarity: {avg_crossover_similarity}")
