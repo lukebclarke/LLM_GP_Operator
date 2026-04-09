@@ -189,6 +189,46 @@ def bar_chart(graph_title, metric_name, bar_labels, values, filepath=None):
         plt.savefig(filepath, dpi=300)
     plt.show()
 
+def similarity_bar_chart(model_names, mutation_similarity, crossover_similarity, filepath=None):
+    fig, ax = plt.subplots()
+
+    w, x = 0.4, np.arange(len(model_names))
+
+    #Generates bar chart
+    ax.bar(x - w/2, mutation_similarity, w, label='Mutation')
+    ax.bar(x + w/2, crossover_similarity, w, label='Crossover')
+
+    ax.set_xticks(x, model_names)
+    ax.set_ylabel('Similarity (%)')
+    ax.set_title('Operator Similarity')
+    ax.legend()
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
+def scatter_plot(graph_title, metric1, metric2, model_names, xs, ys, filepath=None):
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+
+    #Gets default matplotlib colours
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = prop_cycle.by_key()['color']
+
+    for i in range(len(xs)):
+        x = xs[i]
+        y = ys[i]
+        ax.scatter(x, y, label=model_names, color=colors[i])
+
+    ax.set_title(graph_title)
+    ax.set_xlabel(metric1)
+    ax.set_ylabel(metric2)
+    ax.legend()
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
 def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, values_alg2, redesign_generations, filepath=None):
     gens_alg1 = list(range(0, len(values_alg1), 1))
     gens_alg2 = list(range(0, len(values_alg2), 1))
@@ -287,6 +327,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     execution_times = []
     n_evals = []
     solved = []
+    redesign_gens = []
     final_stats = {}
 
     for i in range(num_runs):
@@ -338,6 +379,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
 
         redesign_gens = ao_est.stats_["redesign_generations"]
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
+        redesign_gens.append(redesign_gens)
 
         #Finds the best operator designs in the run (for mutation and crossover)
         best_mutation_design = ao_est.stats_["best_mutation_design"]
@@ -473,6 +515,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     final_stats["min_testing_fitness"] = min_testing_fitness
     final_stats["avg_testing_fitness"] = avg_testing_fitness
     final_stats["avg_execution_time"] = average_exec_time
+    final_stats["all_execution_times"] = execution_times
     final_stats["avg_n_evals"] = average_n_evals
     final_stats["solved_percent"] = solves_percent
     final_stats["redesign_success_rate"] = redesign_success_rate
@@ -480,6 +523,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     final_stats["min_training_fitness"] = all_fit_min
     final_stats["avg_training_size"] = all_size_avg
     final_stats["all_testing_fitness"] = all_fit_testing
+    final_stats["redesign_gens"] = redesign_gens
 
     return final_stats
 
@@ -507,35 +551,6 @@ def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_para
         else:
             print("Fail to reject the null hypothesis: No significant difference between the two samples.")
             log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-
-def compare_llms_on_problems(dataset, names, model_params, num_runs=10):
-    for problem in dataset:
-        #Make directory for results
-        directory_name = f"results/{problem}"
-        try:
-            os.mkdir(directory_name)
-        except FileExistsError:
-            pass
-
-        # final_stats["redesign_success_rate"] = redesign_success_rate
-
-        training_fitnesses = []
-        testing_fitnesses = []
-        avg_sizes = []
-        solve_rates = []
-        avg_n_evals = []
-        for i in range(len(model_params)):
-            stats = run_problem_instance(problem, model_params[i], names[i], num_runs=num_runs)
-            training_fitnesses.append(stats["min_training_fitness"])
-            testing_fitnesses.append(stats["all_testing_fitness"])
-            avg_sizes.append(stats["avg_training_size"])
-            solve_rates.append(stats["solved_percent"] * 100)
-            avg_n_evals.append(stats["avg_n_evals"])
-
-        plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
-        box_plot_min_fitnesses(names, testing_fitnesses, f"{directory_name}/minimum_fitness_boxplot.pdf")
-        plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
-        bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, avg_n_evals, f"{directory_name}/solve_rate.pdf")
 
 def test_configuration(params, tuning_dataset):
     medians = []
@@ -752,6 +767,64 @@ def tune_standard_gp_model():
         pass
 
     hyperparameter_tuning(tuning_ranges, problems, directory_name)
+
+def model_comparisons(optimal_parameters):
+    models = ["Qwen/Qwen3-Coder-Next-FP8", "zai-org/GLM-5", "moonshotai/Kimi-K2.5", "openai/gpt-oss-120b", "deepseek-ai/DeepSeek-V3.1", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
+    model_names = ["Qwen3-Coder", "GLM-5", "Kimi K2.5", "GPT OSS 120b", "DeepSeek V3.1", "Llama 3.3 70b", "No LLM"]
+    reasoning = [False, True, True, True, True, False, False]
+
+    #Testing
+    models = [None, None, None]
+    model_names = ["Standard 1", "Standard 2", "Standard 3", "Standard 4"]
+    reasoning = [False, False, False, False]
+
+    #Choose 8 representative problems
+    ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_10"]
+    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic"]
+    all_problems = ground_truth_problems + black_box_problems
+
+    #Iterates through problems TODO: Update to iterate through all problems
+    for problem in black_box_problems:
+
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        #Statistics 
+        training_fitnesses = []
+        testing_fitnesses = []
+        avg_sizes = []
+        solve_rates = []
+        avg_n_evals = []
+        mutation_similarities = []
+        crossover_similarities = []
+
+        #Runs the problem with each model
+        for i in range(len(models)):
+            current_parameters = optimal_parameters
+            current_parameters["model"] = models[i]
+            current_parameters["reasoning"] = reasoning[i]
+            model_name = model_names
+
+            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=5, save_results=True)
+            training_fitnesses.append(stats["min_training_fitness"])
+            testing_fitnesses.append(stats["all_testing_fitness"])
+            avg_sizes.append(stats["avg_training_size"])
+            solve_rates.append(stats["solved_percent"] * 100)
+            avg_n_evals.append(stats["avg_n_evals"])
+            mutation_similarities.append(stats["mutation_similarity"])
+            crossover_similarities.append(stats["crossover_similarity"])
+
+        plot_minimum_fitnesses(model_names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
+        box_plot_min_fitnesses(model_names, testing_fitnesses, f"{directory_name}/minimum_fitness_boxplot.pdf")
+        plot_avg_size(model_names, avg_sizes, f"{directory_name}/avg_size.pdf")
+        bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, avg_n_evals, f"{directory_name}/solve_rate.pdf")
+
+
+    #TODO: Finish
 
     
 if __name__ == "__main__":
