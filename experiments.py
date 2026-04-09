@@ -23,6 +23,8 @@ from deap import gp
 
 from sklearn.model_selection import train_test_split
 
+from matplotlib.colors import TABLEAU_COLORS, same_color
+
 def get_stats(all_size_avg, all_fit_min):
     #Ensure all runs are of same length (e.g. padding)
     max_length_alg = max((len(run)) for run in all_fit_min)
@@ -44,6 +46,112 @@ def get_stats(all_size_avg, all_fit_min):
     fit_min_mean = np.mean(all_fit_min_runs, axis=0)
 
     return size_avg_mean, fit_min_mean
+
+def pad_runs_multiple_algorithms(algorithm_runs):
+    """Pads runs from multiple algorithms
+
+    Args:
+        algorithm_runs ([[[float]]]): An array containing a list of each algorithms, and the runs within that algorithm
+
+    Returns:
+        _type_: _description_
+    """
+    algorithm_counts = [len(alg) for alg in algorithm_runs]
+
+    #Flattens
+    flattened_runs = [run for alg in algorithm_runs for run in alg]
+
+    #Pads runs
+    padded_runs = pad_runs_single_algorithm(flattened_runs)
+
+    #Returns to original shape
+    separated_runs = []
+    idx = 0
+    for count in algorithm_counts:
+        separated_runs.append(padded_runs[idx:idx+count])
+        idx += count
+
+    return separated_runs
+
+def pad_runs_single_algorithm(runs):
+    """Pads runs to a specified length for easy comparison
+
+    Args:
+        runs ([list]): A list of runs
+
+    Returns:
+        [list]: A list of padded runs
+    """
+    padded_runs = []
+
+    #Finds the maximum length of a run
+    max_len = max([len(run) for run in runs])
+
+    #Pads all runs to the maximum length
+    for run in runs:
+        run = run + ([0] * ((max_len) - len(run)))
+        padded_runs.append(run)
+
+    return padded_runs
+
+def analyse_minimum_fitness_across_runs(minimum_fitnesses):
+    #Runs must be padded already
+    minimum_fitnesses = np.array(minimum_fitnesses)
+
+    medians = np.median(minimum_fitnesses, axis=0)
+    q1s = np.percentile(minimum_fitnesses, 25, axis=0)
+    q3s = np.percentile(minimum_fitnesses, 75, axis=0)
+
+    return medians, q1s, q3s
+
+def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
+    #Pad the minimum fitnesses (so each run is the same length)
+    runs = np.array(pad_runs_multiple_algorithms(alg_min_fitnesses))
+    print("RUNS")
+    print(runs)
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    for i in range(len(runs)):
+
+        median, q1, q3 = analyse_minimum_fitness_across_runs(runs[i])
+        print(median)
+        x = np.arange(len(median))
+        ax.plot(x, median, label=alg_names[i])
+        ax.fill_between(x, q1, q3, alpha=0.2)
+        ax.set_xlabel("Generation")
+        ax.set_ylabel("Minimum Fitness")
+        ax.legend()
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
+def box_plot_min_fitnesses(names, minimum_fitnesses, filepath=None):
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+
+    #Generates box plot
+    bplot = ax.boxplot(minimum_fitnesses, tick_labels=names, patch_artist=True)
+
+    #Gets default matplotlib colours
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = prop_cycle.by_key()['color']
+
+    #Applies colours to boxplots
+    for patch, color in zip(bplot['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.2)
+
+    #Applies colours to median lines
+    for median, color in zip(bplot['medians'], colors):
+        median.set_color(color)
+
+    ax.set_title('Minimum Fitness')
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
 
 def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, values_alg2, redesign_generations, filepath=None):
     gens_alg1 = list(range(0, len(values_alg1), 1))
@@ -340,6 +448,10 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     final_stats["avg_n_evals"] = average_n_evals
     final_stats["solved_percent"] = solves_percent
     final_stats["redesign_success_rate"] = redesign_success_rate
+    final_stats["min_training_fitness"] = all_fit_min
+    final_stats["min_training_fitness"] = all_fit_min
+    final_stats["avg_training_size"] = all_size_avg
+    final_stats["all_testing_fitness"] = all_fit_testing
 
     log.close()
 
@@ -359,15 +471,35 @@ def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_para
 
         p_value, test_statistic, diff = statistical_testing(traditional_stats["min_testing_fitness"], adaptive_stats["min_testing_fitness"], 0.05)
 
-
         log = open(f"{directory_name}/{alg1_name}__{alg2_name}.txt", "w")
         log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
+        log.write(f"Wilcoxon Signed Rank Test Statistic:: {test_statistic}\n")
+        log.write(f"p-value: {p_value}\n")
         if diff:
             print("Reject the null hypothesis: There is a significant difference between the two samples.")
             log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
         else:
             print("Fail to reject the null hypothesis: No significant difference between the two samples.")
             log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
+
+def compare_llms_on_problems(dataset, names, model_params, num_runs=10):
+    for problem in dataset:
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        training_fitnesses = []
+        testing_fitnesses = []
+        for i in range(len(model_params)):
+            stats = run_problem_instance(problem, model_params[i], names[i], num_runs=num_runs)
+            training_fitnesses.append(stats["min_training_fitness"])
+            testing_fitnesses.append(stats["all_testing_fitness"])
+
+        plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
+        box_plot_min_fitnesses(names, testing_fitnesses, f"{directory_name}/minimum_fitness_boxplot.pdf")
 
 def main():
     #Parameters
@@ -419,7 +551,8 @@ def main():
     #Chooses 10 random problems
     datasets = random.sample(problems, num_problems)
 
-    compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
+    # compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
+    compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
     
 if __name__ == "__main__":
     main() 
