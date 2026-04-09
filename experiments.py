@@ -127,6 +127,21 @@ def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
 
     plt.show()
 
+def plot_histogram_redesign_gens(redesign_gens, n_gens=100, filepath=None):
+    array = np.array(redesign_gens)
+    flattened_gens = array.flatten()
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+
+    x, y = np.unique_counts(flattened_gens)
+
+    hist = ax.hist(x, y, bins=n_gens)
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
 def box_plot_min_fitnesses(names, minimum_fitnesses, filepath=None):
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
@@ -529,7 +544,7 @@ def test_configuration(params, tuning_dataset):
 
     for problem in tuning_dataset:
         #Perform 5 runs per configuration when tuning
-        stats = run_problem_instance(problem, params, None, 1, save_results=False)
+        stats = run_problem_instance(problem, params, None, 5, save_results=False)
 
         testing_fitnesses = stats["all_testing_fitness"]
 
@@ -632,6 +647,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             q1 = []
             q3 = []
 
+
             #Finds values for lower quartile, upper quartile, and median
             for i in range(len(tuning_medians)):
                 parameter = parameters[i]
@@ -644,7 +660,6 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             #Plots graph
             fig = plt.figure(figsize=[7,5])
             ax = plt.subplot(111)
-            x = np.arange(len(median))
             ax.plot(x, median)
             ax.fill_between(x, q1, q3, alpha=0.2)
             ax.set_xlabel(f"{plot_param} Value")
@@ -726,6 +741,7 @@ def tune_standard_gp_model():
 
     #Chosen as they cover different areas of the problem space
     problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
+    problems = ["192_vineyard"]
 
     #Make directory for results
     directory_name = f"results/hyperparameter_tuning"
@@ -734,7 +750,8 @@ def tune_standard_gp_model():
     except FileExistsError:
         pass
 
-    hyperparameter_tuning(tuning_ranges, problems, directory_name, "cxpb")
+    hyperparameter_tuning(tuning_ranges, problems, directory_name)
+
     
 if __name__ == "__main__":
     tune_standard_gp_model()
