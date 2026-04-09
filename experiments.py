@@ -94,7 +94,7 @@ def pad_runs_single_algorithm(runs):
 
     return padded_runs
 
-def analyse_minimum_fitness_across_runs(minimum_fitnesses):
+def analyse_across_runs(minimum_fitnesses):
     #Runs must be padded already
     minimum_fitnesses = np.array(minimum_fitnesses)
 
@@ -114,7 +114,7 @@ def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
     ax = plt.subplot(111)
     for i in range(len(runs)):
 
-        median, q1, q3 = analyse_minimum_fitness_across_runs(runs[i])
+        median, q1, q3 = analyse_across_runs(runs[i])
         print(median)
         x = np.arange(len(median))
         ax.plot(x, median, label=alg_names[i])
@@ -124,6 +124,27 @@ def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
         ax.legend()
     if filepath:
         plt.savefig(filepath, dpi=300)
+    plt.show()
+
+def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
+    #Pad the minimum fitnesses (so each run is the same length)
+    runs = np.array(pad_runs_multiple_algorithms(alg_avg_sizes))
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    for i in range(len(runs)):
+
+        median, q1, q3 = analyse_across_runs(runs[i])
+        x = np.arange(len(median))
+        ax.plot(x, median, label=alg_names[i])
+        ax.fill_between(x, q1, q3, alpha=0.2)
+        ax.set_xlabel("Generation")
+        ax.set_ylabel("Average Size")
+        ax.legend()
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+
     plt.show()
 
 def box_plot_min_fitnesses(names, minimum_fitnesses, filepath=None):
@@ -147,6 +168,27 @@ def box_plot_min_fitnesses(names, minimum_fitnesses, filepath=None):
         median.set_color(color)
 
     ax.set_title('Minimum Fitness')
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+    plt.show()
+
+def bar_chart(graph_title, metric_name, bar_labels, values, filepath=None):
+    fig, ax = plt.subplots()
+
+    #Gets default matplotlib colours
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+    colors = prop_cycle.by_key()['color']
+
+    #Generates bar chart
+    bars = ax.bar(bar_labels, values, label=bar_labels, facecolor=colors)
+
+    #Lowers transparency of colours
+    for bar in bars:
+        bar.set_alpha(0.2)
+
+    ax.set_ylabel(metric_name)
+    ax.set_title(graph_title)
 
     if filepath:
         plt.savefig(filepath, dpi=300)
@@ -491,15 +533,25 @@ def compare_llms_on_problems(dataset, names, model_params, num_runs=10):
         except FileExistsError:
             pass
 
+        # final_stats["redesign_success_rate"] = redesign_success_rate
+
         training_fitnesses = []
         testing_fitnesses = []
+        avg_sizes = []
+        solve_rates = []
+        avg_n_evals = []
         for i in range(len(model_params)):
             stats = run_problem_instance(problem, model_params[i], names[i], num_runs=num_runs)
             training_fitnesses.append(stats["min_training_fitness"])
             testing_fitnesses.append(stats["all_testing_fitness"])
+            avg_sizes.append(stats["avg_training_size"])
+            solve_rates.append(stats["solved_percent"] * 100)
+            avg_n_evals.append(stats["avg_n_evals"])
 
         plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
         box_plot_min_fitnesses(names, testing_fitnesses, f"{directory_name}/minimum_fitness_boxplot.pdf")
+        plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
+        bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, avg_n_evals, f"{directory_name}/solve_rate.pdf")
 
 def main():
     #Parameters
