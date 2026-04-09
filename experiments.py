@@ -12,8 +12,10 @@ import random
 import math
 import shutil
 import time
+from itertools import product
 
 import scipy.stats as stats
+import statistics
 
 from deap import algorithms
 from deap import base
@@ -24,28 +26,6 @@ from deap import gp
 from sklearn.model_selection import train_test_split
 
 from matplotlib.colors import TABLEAU_COLORS, same_color
-
-def get_stats(all_size_avg, all_fit_min):
-    #Ensure all runs are of same length (e.g. padding)
-    max_length_alg = max((len(run)) for run in all_fit_min)
-
-    padded_avg_size = []
-    padded_min_fit = []
-
-    #Finds padded metrics for each run
-    for i in range(len(all_fit_min)):
-        padded_avg_size.append(all_size_avg[i] + ([0] * (max_length_alg - len(all_size_avg[i]))))
-        padded_min_fit.append(all_fit_min[i] + ([0] * (max_length_alg - len(all_fit_min[i]))))
-
-    #Convert to numpy to find average
-    all_size_avg_runs = np.array(padded_avg_size)
-    all_fit_min_runs = np.array(padded_min_fit)
-
-    #Find mean of runs across each generation
-    size_avg_mean = np.mean(all_size_avg_runs, axis=0)
-    fit_min_mean = np.mean(all_fit_min_runs, axis=0)
-
-    return size_avg_mean, fit_min_mean
 
 def pad_runs_multiple_algorithms(algorithm_runs):
     """Pads runs from multiple algorithms
@@ -194,7 +174,6 @@ def bar_chart(graph_title, metric_name, bar_labels, values, filepath=None):
         plt.savefig(filepath, dpi=300)
     plt.show()
 
-
 def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, values_alg2, redesign_generations, filepath=None):
     gens_alg1 = list(range(0, len(values_alg1), 1))
     gens_alg2 = list(range(0, len(values_alg2), 1))
@@ -262,43 +241,23 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
 
     return stat, p_value, diff
 
-def plot_comparison_graph(metric_name, alg1_label, alg2_label, metric_values1, metric_values2, filepath=None):
-    xdata1 = list(range(0, len(metric_values1), 1))
-    ydata1 = metric_values1
-
-    xdata2 = list(range(0, len(metric_values2), 1))
-    ydata2 = metric_values2
-
-    fig = plt.figure(figsize=[7,5])
-    ax = plt.subplot(111)
-    ax.plot(xdata1, ydata1, label=alg1_label) 
-    ax.plot(xdata2, ydata2, label=alg2_label) 
-    ax.set_xlabel("Generations")
-    ax.set_ylabel(metric_name)
-    ax.legend()
-    ax.grid('on')
-
-    if filepath:
-        fig.savefig(filepath, dpi=300, bbox_inches='tight')
-        plt.close()
-    else:
-        plt.show()
-
-def run_problem_instance(problem_name, params, model_name, num_runs=10):
+def run_problem_instance(problem_name, params, model_name, num_runs=10, save_results=True):
     #Gets training and testing data
+    print(problem_name)
     X, Y = fetch_data(problem_name, return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
     #Make for model within results
-    directory_name = f"results/{problem_name}"
-    directory_name = f"{directory_name}/{model_name}"
-    try:
-        os.mkdir(directory_name)
-    except FileExistsError:
-        pass
+    if save_results:
+        directory_name = f"results/{problem_name}"
+        directory_name = f"{directory_name}/{model_name}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
 
-    #Opens log file
-    log = open(f"{directory_name}/logbook.txt", "w")
+        #Opens log file
+        log = open(f"{directory_name}/logbook.txt", "w")
 
     #Statistics
     all_size_avg = []
@@ -386,21 +345,18 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
         solved.append(ao_est.stats_["solved"])
 
         #Writes logbook to file
-        log.write("Running adaptive algorithm...\n")
-        log.write("\n")
-        log.write(str(ao_est.logbook_))
-        log.write("\n")
-        log.write("============================================")
+        if save_results:
+            log.write("Running adaptive algorithm...\n")
+            log.write("\n")
+            log.write(str(ao_est.logbook_))
+            log.write("\n")
+            log.write("============================================")
 
     #Redesign counts
     avg_redesigns_mut = sum(num_mutation_redesigns) / num_runs
     avg_redesigns_cx = sum(num_crossover_redesigns) / num_runs
     print(f"Number of mutation redesigns: {avg_redesigns_mut}")
     print(f"Number of crossover redesigns: {avg_redesigns_cx}")
-    log.write("\n")
-    log.write("\n")
-    log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
-    log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
 
     #Mutation similarity score
     if mutation_similarities:
@@ -423,42 +379,28 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
     print(f"Crossover similarity: {avg_crossover_similarity}")
-    log.write("\n")
-    log.write(f"Mutation similarity: {avg_mutation_similarity}\n")
-    log.write(f"Crossover similarity: {avg_crossover_similarity}\n")
 
     #Results on testing data
     avg_testing_fitness = np.mean(all_fit_testing)
     min_testing_fitness = min(all_fit_testing)
     print(f"Average Testing Fitness: {avg_testing_fitness}")
     print(f"Minimum Testing Fitness: {min_testing_fitness}")
-    log.write("\n")
-    log.write(f"Average Testing Fitness (Standard Operator): {avg_testing_fitness}\n")
-    log.write(f"Minimum Testing Fitness (Standard Operator): {min_testing_fitness}\n")
 
     #Find average execution time
     average_exec_time = sum(execution_times) / len(execution_times)
     print(f"Average execution time: {average_exec_time}")
-    log.write("\n")
-    log.write(f"Average execution time: {average_exec_time}")
 
     #Find average number of evaluations
     average_n_evals = sum(n_evals) / len(n_evals)
     print(f"Average number of evaluations: {average_n_evals}")
-    log.write("\n")
-    log.write(f"Average number of evaluations: {average_n_evals}")
 
     #Finds percent of problems solved
     solves_percent = solved.count(True) / len(solved)
     print(f"Percent of problems solved: {solves_percent}")
-    log.write("\n")
-    log.write(f"Percent of problems solved: {solves_percent}")
 
     #Find success rate of designs
     redesign_success_rate = ao_est.stats_["redesign_success_rate"]
     print(f"Redesign success rate: {redesign_success_rate}")
-    log.write("\n")
-    log.write(f"Redesign success rate: {redesign_success_rate}")
 
     #Find overall best operator designs
     if best_mutation_designs:
@@ -479,6 +421,35 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
         crossover_design_file.write(f"Mean Average Fitness Improvement: {best_crossover_stats["avg_fitness_improv"]}\n")
         crossover_design_file.write(f"\nOperator Design:\n{best_crossover_design}")
 
+    if save_results:
+        #Write to logbook
+        log.write("\n")
+        log.write("\n")
+        log.write(f"Number of mutation redesigns: {avg_redesigns_mut}\n")
+        log.write(f"Number of crossover redesigns: {avg_redesigns_cx}\n")
+
+        log.write("\n")
+        log.write(f"Mutation similarity: {avg_mutation_similarity}\n")
+        log.write(f"Crossover similarity: {avg_crossover_similarity}\n")
+
+        log.write("\n")
+        log.write(f"Average Testing Fitness (Standard Operator): {avg_testing_fitness}\n")
+        log.write(f"Minimum Testing Fitness (Standard Operator): {min_testing_fitness}\n")
+
+        log.write("\n")
+        log.write(f"Average execution time: {average_exec_time}")
+
+        log.write("\n")
+        log.write(f"Average number of evaluations: {average_n_evals}")
+
+        log.write("\n")
+        log.write(f"Percent of problems solved: {solves_percent}")
+
+        log.write("\n")
+        log.write(f"Redesign success rate: {redesign_success_rate}")
+
+        log.close()
+
     #Update Final Stats
     final_stats["mutation_redesigns"] = avg_redesigns_mut
     final_stats["crossover_redesigns"] = avg_redesigns_cx
@@ -494,8 +465,6 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10):
     final_stats["min_training_fitness"] = all_fit_min
     final_stats["avg_training_size"] = all_size_avg
     final_stats["all_testing_fitness"] = all_fit_testing
-
-    log.close()
 
     return final_stats
 
@@ -553,6 +522,137 @@ def compare_llms_on_problems(dataset, names, model_params, num_runs=10):
         plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
         bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, avg_n_evals, f"{directory_name}/solve_rate.pdf")
 
+def test_configuration(params, tuning_dataset):
+    medians = []
+    q1s = []
+    q3s = []
+
+    for problem in tuning_dataset:
+        #Perform 5 runs per configuration when tuning
+        stats = run_problem_instance(problem, params, None, 1, save_results=False)
+
+        testing_fitnesses = stats["all_testing_fitness"]
+
+        #Return the median fitness from testing
+        median, q1, q3 = analyse_across_runs(testing_fitnesses)
+        medians.append(median) 
+        q1s.append(q1)
+        q3s.append(q3)
+
+    return medians, q1s, q3s
+
+def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
+    #Creates list of parameter combinations
+    keys = ranges.keys()
+    values = ranges.values()
+
+    parameters = [dict(zip(keys, v)) for v in product(*values)]
+    parameters_tuples = []
+    for param in parameters:
+        parameters_tuples.append(tuple(param.items()))
+
+    #Iterates through each parameter combination
+    tuning_medians = {}
+    tuning_q1s = {}
+    tuning_q3s = {}
+    for i in range(len(parameters)):
+
+        #Set up parameters
+        current_params = {
+            "pop_size": parameters[i]["pop_size"],
+            "gens": 100,
+            "max_time": 8.0 * 60.0 * 60.0,
+            "cxpb": parameters[i]["cxpb"],
+            "mutpb": parameters[i]["cxpb"],
+            "k": parameters[i]["k"],
+            "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+            "verbose": True,
+            "self_adapt_req": parameters[i]["self_adapt_req"],
+            "default_temperature": parameters[i]["default_temperature"],
+            "temperature_alpha": parameters[i]["temperature_alpha"], 
+            "maximum_stagnation": 10,
+            "model": parameters[i]["model"],
+            "reasoning_model": parameters[i]["reasoning_model"]
+        }
+
+        param_tuple = parameters_tuples[i]
+
+        medians, q1s, q3s = test_configuration(current_params, tuning_problems)
+        tuning_medians[param_tuple] = medians
+        tuning_q1s[param_tuple] = q1s
+        tuning_q3s[param_tuple] = q3s
+    
+    #Determine average rank for each hyperparameter combination
+    medians_list = list(tuning_medians.values())
+
+    parameter_rankings = {param: [] for param in parameters_tuples}
+    problem_rankings = []
+
+    #Rank the performance on each problem instance
+    for i in range(len(medians_list[0])):
+        problem_medians = [medians[i] for medians in medians_list]
+        problem_rankings.append(stats.rankdata(problem_medians, method='average'))
+
+    #Gets rank for each problem for each parameter
+    for problem in problem_rankings:
+        for i in range(len(problem)):
+            param = parameters_tuples[i]
+            parameter_rankings[param].append(problem[i])
+
+    #Add average rank
+    for param, ranks in parameter_rankings.items():
+        avg_rank = sum(ranks) / len(ranks)
+        parameter_rankings[param].append(avg_rank)
+
+    #Find best configuration
+    sorted_ranks = sorted(parameter_rankings.items(), key=lambda x: x[1][-1])
+
+    print("Best configuration")
+    print(sorted_ranks[0][0])
+
+    with open(f"{filepath}/tuning_results.txt", "w") as f:
+        for param in parameter_rankings:
+            f.write(str(param) + "\n")
+            f.write(f"Problem 1 Median: {tuning_medians[param][0]}\n")
+            f.write(f"Problem 1 Rank: {parameter_rankings[param][0]}\n")
+            f.write(f"Problem 2 Median: {tuning_medians[param][1]}\n")
+            f.write(f"Problem 2 Rank: {parameter_rankings[param][1]}\n")
+            f.write(f"Problem 3 Median: {tuning_medians[param][2]}\n")
+            f.write(f"Problem 3 Rank: {parameter_rankings[param][2]}\n")
+            f.write(f"Average Rank: {parameter_rankings[param][-1]}\n\n")
+
+        f.write("Best configuration:\n")
+        f.write(str(sorted_ranks[0][0]))
+
+    if plot_param:
+        #Plot graph for each problem
+        for p in range(len(tuning_problems)):
+            x = []
+            median = []
+            q1 = []
+            q3 = []
+
+            #Finds values for lower quartile, upper quartile, and median
+            for i in range(len(tuning_medians)):
+                parameter = parameters[i]
+                parameter_tuple = parameters_tuples[i]
+                x.append(parameter[plot_param])
+                median.append(tuning_medians[parameter_tuple][p])
+                q1.append(tuning_q1s[parameter_tuple][p])
+                q3.append(tuning_q3s[parameter_tuple][p])
+
+            #Plots graph
+            fig = plt.figure(figsize=[7,5])
+            ax = plt.subplot(111)
+            x = np.arange(len(median))
+            ax.plot(x, median)
+            ax.fill_between(x, q1, q3, alpha=0.2)
+            ax.set_xlabel(f"{plot_param} Value")
+            ax.set_ylabel("Minimum Testing Fitness")            
+
+            plt.savefig(f"{filepath}/{plot_param}_plot.pdf", dpi=300)
+            plt.show()
+
 def main():
     #Parameters
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
@@ -604,7 +704,37 @@ def main():
     datasets = random.sample(problems, num_problems)
 
     # compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
-    compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
+    # compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
+
+####MAIN FUNCTIONS####
+
+def tune_standard_gp_model():
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
+    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
+
+    tuning_ranges = {
+        "pop_size": [10], #250
+        "cxpb": [0.7, 0.8, 0.9],
+        "mutpb": [0.1],
+        "k": [100000],
+        "self_adapt_req": [None], #Can be set to None (5 works well)
+        "default_temperature": [0.3],
+        "temperature_alpha": [0.1],
+        "model": [None],
+        "reasoning_model": [False]
+    }
+
+    #Chosen as they cover different areas of the problem space
+    problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
+
+    #Make directory for results
+    directory_name = f"results/hyperparameter_tuning"
+    try:
+        os.mkdir(directory_name)
+    except FileExistsError:
+        pass
+
+    hyperparameter_tuning(tuning_ranges, problems, directory_name, "cxpb")
     
 if __name__ == "__main__":
-    main() 
+    tune_standard_gp_model()
