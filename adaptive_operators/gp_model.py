@@ -88,6 +88,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "max_time": [float],
         "cxpb": [float],
         "mutpb": [float],
+        "tourn_size": [int],
         "k": [int],
         "self_adapt_req": [int, None],
         "default_temperature": [float, None],
@@ -100,12 +101,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "reasoning_model": [bool]
     }
 
-    def __init__(self, pop_size=200, gens=40, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False):
+    def __init__(self, pop_size=200, gens=40, tourn_size=3, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
         self.cxpb = cxpb
         self.mutpb = mutpb
+        self.tourn_size = tourn_size
         self.functions = functions
         self.k = k
         self.verbose = verbose
@@ -291,7 +293,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual) #Creates populations
         self.toolbox.register("compile", gp.compile, pset=self.pset) #Converts tree into runnable code 
         self.toolbox.register("evaluate", self.evaluate_individual, X=X, Y=y)
-        self.toolbox.register("select", tools.selTournament, tournsize=3) #TODO: Add tournament size to hyper-parameters
+        self.toolbox.register("select", tools.selTournament, tournsize=self.tourn_size)
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces

@@ -578,7 +578,8 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             "gens": 100,
             "max_time": 8.0 * 60.0 * 60.0,
             "cxpb": parameters[i]["cxpb"],
-            "mutpb": parameters[i]["cxpb"],
+            "mutpb": parameters[i]["mutpb"],
+            "tourn_size": parameters[i]["tourn_size"],
             "k": parameters[i]["k"],
             "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
             "verbose": True,
@@ -731,6 +732,7 @@ def tune_standard_gp_model():
         "pop_size": [10], #250
         "cxpb": [0.7, 0.8, 0.9],
         "mutpb": [0.1],
+        "tourn_size": [3],
         "k": [100000],
         "self_adapt_req": [None], #Can be set to None (5 works well)
         "default_temperature": [0.3],
@@ -741,7 +743,6 @@ def tune_standard_gp_model():
 
     #Chosen as they cover different areas of the problem space
     problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
-    problems = ["192_vineyard"]
 
     #Make directory for results
     directory_name = f"results/hyperparameter_tuning"
