@@ -303,6 +303,25 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
 
     return stat, p_value, diff
 
+def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements):
+    x = ["Ground Truth", "Black Box"]
+    wins = np.array([ground_truth_wins, black_box_wins])
+    losses = np.array([ground_truth_losses, black_box_losses])
+    ties = np.array([ground_truth_ties, black_box_ties])
+
+    #Plot stacked bar chart
+    plt.bar(x, wins, color='tab:green', alpha=0.2)
+    plt.bar(x, ties, bottom=wins, color='tab:gray', alpha=0.2)
+    plt.bar(x, losses, bottom=wins+ties, color='tab:red', alpha=0.2)
+    plt.ylabel("Number of Problems")
+    plt.legend(["Win", "Tie", "Losses"])
+    plt.title("Performance of LLM-Based GP against Standard GP")
+    plt.show()
+    plt.savefig("results/groundtruth_blackbox.pdf", dpi=300)
+
+    #Boxpot for Improvements
+    plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
+
 def run_problem_instance(problem_name, params, model_name, num_runs=10, save_results=True):
     #Gets training and testing data
     print(problem_name)
@@ -564,6 +583,8 @@ def test_configuration(params, tuning_dataset):
     q1s = []
     q3s = []
     exec_times = []
+    mutation_similarities = []
+    crossover_similarities = []
 
     for problem in tuning_dataset:
         #Perform 5 runs per configuration when tuning
@@ -578,8 +599,10 @@ def test_configuration(params, tuning_dataset):
         q1s.append(q1)
         q3s.append(q3)
         exec_times.append(execution_times)
+        mutation_similarities.append(stats["mutation_similarity"])
+        crossover_similarities.append(stats["crossover_similarity"])
 
-    return medians, q1s, q3s, exec_times
+    return medians, q1s, q3s, exec_times, mutation_similarities, crossover_similarities
 
 def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
     #Creates list of parameter combinations
@@ -596,6 +619,8 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
     tuning_q1s = {}
     tuning_q3s = {}
     tuning_exec_times = {}
+    tuning_mut_similarities = {}
+    tuning_cross_similarities = {}
     for i in range(len(parameters)):
 
         #Set up parameters
@@ -619,12 +644,14 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
 
         param_tuple = parameters_tuples[i]
 
-        medians, q1s, q3s, exec_times = test_configuration(current_params, tuning_problems)
+        medians, q1s, q3s, exec_times, mutation_similarities, crossover_similarities = test_configuration(current_params, tuning_problems)
         tuning_medians[param_tuple] = medians
         tuning_q1s[param_tuple] = q1s
         tuning_q3s[param_tuple] = q3s
         tuning_exec_times[param_tuple] = exec_times
-    
+        tuning_mut_similarities[param_tuple] = mutation_similarities
+        tuning_cross_similarities[param_tuple] = crossover_similarities
+
     #Determine average rank for each hyperparameter combination
     medians_list = list(tuning_medians.values())
 
@@ -875,7 +902,7 @@ def model_comparisons(optimal_parameters):
     similarity_bar_chart(model_names[:-1], mutation_similarities_per_model, crossover_similarities_per_model, f"{overall_directory_name}/similarity_chart.pdf")
     bar_chart("LLM-Design Success Rate", "Success Rate (%)", model_names[:-1], success_rate_per_model, f"{overall_directory_name}/success_rate.pdf")
     
-def final_results(optimal_parameters, standard_model_params, model_name):
+def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name):
     ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_10", "feynman_I_18_4", "feynman_II_6_15b", "feynman_III_17_37", "strogatz_barmag2", "strogatz_lv1", "strogatz_predprey1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic", "529_pollen", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
 
@@ -890,10 +917,20 @@ def final_results(optimal_parameters, standard_model_params, model_name):
     ground_truth_improvements = []
     black_box_improvements = []
 
+    redesign_gens = []
+
     #TODO: Do something with improvement
     for problem in ground_truth_problems:
-        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 10, True)
-        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 10, True)
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        #TODO: Change num_runs to 10
+        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 2, True)
+        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 2, True)
         
         #Evaluate based on testing fitnesses
         adaptive_testing_fitnesses = adaptive_stats["all_testing_fitness"]
@@ -913,8 +950,15 @@ def final_results(optimal_parameters, standard_model_params, model_name):
             ground_truth_losses += 1
 
     for problem in black_box_problems:
-        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 10, True)
-        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 10, True)
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 2, True)
+        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 2, True)
         
         #Evaluate based on testing fitnesses
         adaptive_testing_fitnesses = adaptive_stats["all_testing_fitness"]
@@ -933,25 +977,7 @@ def final_results(optimal_parameters, standard_model_params, model_name):
         else:
             black_box_losses += 1
 
-    x = ["Ground Truth", "Black Box"]
-    wins = [ground_truth_wins, black_box_wins]
-    losses = [ground_truth_losses, black_box_losses]
-    ties = [ground_truth_ties, black_box_ties]
-
-    #Plot stacked bar chart
-    plt.bar(x, wins, color='tab: green', alpha=0.2)
-    plt.bar(x, ties, bottom=wins, color='tab:gray', alpha=0.2)
-    plt.bar(x, losses, bottom=wins+ties, color='tab:red', alpha=0.2)
-    plt.ylabel("Number of Problems")
-    plt.legend(["Win", "Tie", "Losses"])
-    plt.title("Performance of LLM-Based GP against Standard GP")
-    plt.show()
-    plt.savefig("results/groundtruth_blackbox.pdf", dpi=300)
-
-    #Boxpot for Improvements
-    plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
-
-    #Histogram of redesign frequency
+    compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
 
 if __name__ == "__main__":
     #Set up creator object
@@ -976,6 +1002,23 @@ if __name__ == "__main__":
         "reasoning_model": False
     }
 
+    testing_params = {
+        "pop_size": 10, #250
+        "gens": 5,
+        "max_time": 8.0 * 60.0 * 60.0,
+        "cxpb": 0.8,
+        "mutpb": 0.1,
+        "k": 5, 
+        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+        "verbose": True,
+        "self_adapt_req": None, #Can be set to None (5 works well)
+        "default_temperature": 0.3,
+        "temperature_alpha": 0.1,
+        "maximum_stagnation": 10,
+        "model": None,
+        "reasoning_model": False
+    }
+
     tuning_ranges = {
         "pop_size": [10], #250
         "cxpb": [0.8],
@@ -989,4 +1032,8 @@ if __name__ == "__main__":
         "reasoning_model": [False]
     }
 
-    final_results(standard_params, standard_params, "Standard1")
+    blackbox_vs_groundtruth(standard_params, standard_params, "Standard1")
+
+#TODO
+#Tune self-adaptation (compare similarity?)
+#Test loading custom operator design

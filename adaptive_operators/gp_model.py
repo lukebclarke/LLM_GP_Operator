@@ -98,10 +98,12 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "verbose": [bool],
         "random_state": [int],
         "model": [str, None],
-        "reasoning_model": [bool]
+        "reasoning_model": [bool],
+        "custom_crossover_filepath": [str, None],
+        "custom_mutation_filepath": [str, None]
     }
 
-    def __init__(self, pop_size=200, gens=40, tourn_size=3, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False):
+    def __init__(self, pop_size=200, gens=40, tourn_size=3, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, custom_crossover_filepath=None, custom_mutation_filepath=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -117,6 +119,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.default_temperature = default_temperature
         self.temperature_alpha = temperature_alpha
         self.maximum_stagnation = maximum_stagnation
+        self.custom_crossover_filepath = custom_crossover_filepath
+        self.custom_mutation_filepath = custom_crossover_filepath
 
         self.model = model
         self.reasoning_model = reasoning_model
@@ -297,8 +301,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha)
+        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_mutation_filepath)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_crossover_filepath)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)

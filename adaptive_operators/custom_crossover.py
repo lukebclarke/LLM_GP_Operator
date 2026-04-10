@@ -15,7 +15,7 @@ import sys
 import inspect
 
 class CustomCrossover(BaseOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, max_local_skips=5, max_num_retries=5, default_temperature=0.3, temperature_alpha=0.1):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, max_local_skips=5, max_num_retries=5, default_temperature=0.3, temperature_alpha=0.1, custom_operator_filepath=None):
         #Crossover operators have 2 parents and 2 offspring
         super().__init__(client, sandbox, pset, toolbox, num_parents=2, num_offspring=2, max_num_retries=max_num_retries, default_temperature=default_temperature, temperature_alpha=temperature_alpha, max_local_skips=max_local_skips, model=model, reasoning_model=reasoning_model)
 
@@ -30,6 +30,11 @@ class CustomCrossover(BaseOperator):
         with open("docs/LLMPromptCrossover.txt", "r") as f:
             self.original_llm_prompt = f.read()
         self.llm_prompt = None
+        
+        self.custom_local_design = None
+        if custom_operator_filepath:
+            with open(custom_operator_filepath, "r") as f:
+                self.custom_local_design = f.read()
 
         #Enables us to import crossover design stored in temp folder 
         sys.path.append('/temp')

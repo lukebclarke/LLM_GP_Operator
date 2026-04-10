@@ -15,7 +15,7 @@ import inspect
 from adaptive_operators.base_operator import BaseOperator
 
 class CustomMutation(BaseOperator):
-    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, max_local_skips=5, max_num_retries=5, default_temperature=0.3, temperature_alpha=0.1):
+    def __init__(self, client, sandbox, pset, toolbox, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, max_local_skips=5, max_num_retries=5, default_temperature=0.3, temperature_alpha=0.1, custom_operator_filepath=None):
         #Mutation operators have 2 parents and 2 offspring
         super().__init__(client, sandbox, pset, toolbox, num_parents=1, num_offspring=1, max_num_retries=max_num_retries, max_local_skips=max_local_skips, model=model, reasoning_model=reasoning_model, default_temperature=default_temperature, temperature_alpha=temperature_alpha)
 
@@ -30,6 +30,11 @@ class CustomMutation(BaseOperator):
         with open("docs/LLMPromptMutation.txt", "r") as f:
             self.original_llm_prompt = f.read()
         self.llm_prompt = None
+
+        if custom_operator_filepath:
+            with open(custom_operator_filepath, "r") as f:
+                self.operator_design = f.read()
+            self.operator_design_validated = True
 
         #Enables us to import mutation design stored in temp folder 
         sys.path.append('/temp')
