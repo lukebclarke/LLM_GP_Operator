@@ -34,7 +34,7 @@ def pad_runs_multiple_algorithms(algorithm_runs):
         algorithm_runs ([[[float]]]): An array containing a list of each algorithms, and the runs within that algorithm
 
     Returns:
-        _type_: _description_
+        list: The padded list of algorithm runs
     """
     algorithm_counts = [len(alg) for alg in algorithm_runs]
 
@@ -75,6 +75,14 @@ def pad_runs_single_algorithm(runs):
     return padded_runs
 
 def analyse_across_runs(minimum_fitnesses):
+    """Finds median, lower quartile and upper quartile across multiple runs
+
+    Args:
+        minimum_fitnesses (list): All minimum testing fitnesses
+
+    Returns:
+        list, list, list: A list of the medians, lower quartiles and upper quartiles across runs
+    """
     #Runs must be padded already
     minimum_fitnesses = np.array(minimum_fitnesses)
 
@@ -85,6 +93,13 @@ def analyse_across_runs(minimum_fitnesses):
     return medians, q1s, q3s
 
 def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
+    """Plots a graph of minimum fitness per generation
+
+    Args:
+        alg_names ([str]): The names of the models
+        alg_min_fitnesses ([float]): The list of fitnesses
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
     #Pad the minimum fitnesses (so each run is the same length)
     runs = np.array(pad_runs_multiple_algorithms(alg_min_fitnesses))
 
@@ -107,13 +122,21 @@ def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
         plt.close()
 
 def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
+    """Plots a graph of average size per generation
+
+    Args:
+        alg_names ([str]): The names of the models
+        alg_avg_sizes ([float]): The list of average sizes
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
     #Pad the minimum fitnesses (so each run is the same length)
     runs = np.array(pad_runs_multiple_algorithms(alg_avg_sizes))
 
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
-    for i in range(len(runs)):
 
+    #Analyses each run
+    for i in range(len(runs)):
         median, q1, q3 = analyse_across_runs(runs[i])
         x = np.arange(len(median))
         ax.plot(x, median, label=alg_names[i])
@@ -128,6 +151,13 @@ def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
         plt.close()
 
 def plot_histogram_redesign_gens(redesign_gens, n_gens=100, filepath=None):
+    """Plots a histogram for generations with most frequent operator redesigns
+
+    Args:
+        redesign_gens ([int]): Lists of generations that operators are redesigned on
+        n_gens (int, optional): The number of generations. Defaults to 100.
+        filepath (str, optional): The location to save the histogram. Defaults to None.
+    """
     array = np.array(redesign_gens)
     flattened_gens = array.flatten()
 
@@ -144,6 +174,15 @@ def plot_histogram_redesign_gens(redesign_gens, n_gens=100, filepath=None):
         plt.close()
 
 def plot_boxplot(names, values, title, y_label, filepath=None):
+    """Plots a boxplot
+
+    Args:
+        names ([str]): Names of models
+        values ([[float]]): The values for each model
+        title (str): Title of the plot
+        y_label (str): Label for the y-axis
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
 
@@ -168,9 +207,18 @@ def plot_boxplot(names, values, title, y_label, filepath=None):
 
     if filepath:
         plt.savefig(filepath, dpi=300)
-    plt.show()
+        plt.close()
 
 def bar_chart(graph_title, metric_name, bar_labels, values, filepath=None):
+    """Plots bar chart
+
+    Args:
+        graph_title (str): Title of the graph
+        metric_name (str): Name of the metric
+        bar_labels ([str]): List of labels for each bar
+        values ([float]): List of values to plot
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
     fig, ax = plt.subplots()
 
     #Gets default matplotlib colours
@@ -189,9 +237,17 @@ def bar_chart(graph_title, metric_name, bar_labels, values, filepath=None):
 
     if filepath:
         plt.savefig(filepath, dpi=300)
-    plt.show()
+    plt.close()
 
 def similarity_bar_chart(model_names, mutation_similarity, crossover_similarity, filepath=None):
+    """Plots the difference in mutation and crossover similarity for multiple models
+
+    Args:
+        model_names ([str]): Names of the models
+        mutation_similarity ([float]): The mutation similarity for each model
+        crossover_similarity ([float]): The mutation similarity for each model
+        filepath (str, optional): The location to save the file. Defaults to None.
+    """
     fig, ax = plt.subplots()
 
     w, x = 0.4, np.arange(len(model_names))
@@ -212,9 +268,20 @@ def similarity_bar_chart(model_names, mutation_similarity, crossover_similarity,
 
     if filepath:
         plt.savefig(filepath, dpi=300)
-    plt.show()
+        plt.close()
 
 def scatter_plot(graph_title, metric1, metric2, model_names, xs, ys, filepath=None):
+    """Plots a scatter graph between two metrics
+
+    Args:
+        graph_title (str): Name of the graph
+        metric1 (str): Name of the first metric
+        metric2 (str): Name of the second metric
+        model_names ([str]): Names of the models
+        xs ([float]): The values of metric 1
+        ys ([float]): The values of metric 2
+        filepath (str, optional): The location to save the graph. Defaults to None.
+    """
     fig = plt.figure(figsize=[7,5])
     ax = plt.subplot(111)
 
@@ -234,52 +301,7 @@ def scatter_plot(graph_title, metric1, metric2, model_names, xs, ys, filepath=No
 
     if filepath:
         plt.savefig(filepath, dpi=300)
-    plt.show()
-
-def plot_improvement_graph(metric_name, alg1_label, alg2_label, values_alg1, values_alg2, redesign_generations, filepath=None):
-    gens_alg1 = list(range(0, len(values_alg1), 1))
-    gens_alg2 = list(range(0, len(values_alg2), 1))
-
-    fig = plt.figure(figsize=[7,5])
-    ax = plt.subplot(111)
-    ax.plot(gens_alg1, values_alg1, label=alg1_label) 
-    ax.plot(gens_alg2, values_alg2, label=alg2_label)
-    ax.set_ylim(bottom=0)
-    ax.set_xticks(range(0, max(len(gens_alg1), len(gens_alg2)), 5))
-    ax.set_xlabel("Generations")
-    ax.set_ylabel(metric_name)
-    ax.legend()
-
-    #Adds references to redesign generations
-    for gen in redesign_generations:
-        ax.axvline(x=gen, linestyle='--')
-
-    if filepath:
-        fig.savefig(filepath, dpi=300, bbox_inches='tight')
         plt.close()
-    else:
-        plt.show()
-
-def plot_improvement_graph_solo(metric_name, values, redesign_generations, filepath=None):
-    gens = list(range(0, len(values), 1))
-
-    fig = plt.figure(figsize=[7,5])
-    ax = plt.subplot(111)
-    ax.plot(gens, values) 
-    ax.set_ylim(bottom=0)
-    ax.set_xticks(range(0, len(gens), 5))
-    ax.set_xlabel("Generations")
-    ax.set_ylabel(metric_name)
-
-    #Adds references to redesign generations
-    for gen in redesign_generations:
-        ax.axvline(x=gen, linestyle='--')
-
-    if filepath:
-        fig.savefig(filepath, dpi=300, bbox_inches='tight')
-        plt.close()
-    else:
-        plt.show()
 
 def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
     """Performs Wilcoxon Signed Rank Test
@@ -304,6 +326,18 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
     return stat, p_value, diff
 
 def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements):
+    """Creates a bar chart and boxplot comparing how LLM-GP performs compared to against standard GP on different problem types.
+
+    Args:
+        ground_truth_wins (int): Number of LLM-GP wins against standard GP on ground truth problems
+        ground_truth_losses (int): Number of LLM-GP losses against standard GP on ground truth problems
+        ground_truth_ties (int): Number of LLM-GP ties against standard GP on ground truth problems
+        black_box_wins (int): Number of LLM-GP wins against standard GP on black box problems
+        black_box_losses (int): Number of LLM-GP losses against standard GP on black box problems
+        black_box_ties (int): Number of LLM-GP ties against standard GP on black box problems
+        ground_truth_improvements ([float]): Percent improvement on ground truth problems of LLM-GP over standard GP
+        black_box_improvements ([float]): Percent improvement on black box problems of LLM-GP over standard GP
+    """
     x = ["Ground Truth", "Black Box"]
     wins = np.array([ground_truth_wins, black_box_wins])
     losses = np.array([ground_truth_losses, black_box_losses])
@@ -323,6 +357,18 @@ def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_t
     plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
 
 def run_problem_instance(problem_name, params, model_name, num_runs=10, save_results=True):
+    """Runs a problem instance multiple times, collating the results
+
+    Args:
+        problem_name (str): Name of the problem from the PMLB dataset
+        params (dict): The model parameters
+        model_name (str): The name of the model
+        num_runs (int, optional): Then number of iterations of each problem. Defaults to 10.
+        save_results (bool, optional): Specifies whether to save the results. Defaults to True.
+
+    Returns:
+        dict: Contains all collated results from the runs
+    """
     #Gets training and testing data
     print(problem_name)
     X, Y = fetch_data(problem_name, return_X_y=True)
@@ -553,32 +599,17 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
 
     return final_stats
 
-def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10):
-    for problem in dataset:
-        #Make directory for results
-        directory_name = f"results/{problem}"
-        try:
-            os.mkdir(directory_name)
-        except FileExistsError:
-            pass
-
-        traditional_stats = run_problem_instance(problem, alg1_params, alg1_name, num_runs=num_runs)
-        adaptive_stats = run_problem_instance(problem, alg2_params, alg2_name, num_runs=num_runs)
-
-        p_value, test_statistic, diff = statistical_testing(traditional_stats["min_testing_fitness"], adaptive_stats["min_testing_fitness"], 0.05)
-
-        log = open(f"{directory_name}/{alg1_name}__{alg2_name}.txt", "w")
-        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
-        log.write(f"Wilcoxon Signed Rank Test Statistic:: {test_statistic}\n")
-        log.write(f"p-value: {p_value}\n")
-        if diff:
-            print("Reject the null hypothesis: There is a significant difference between the two samples.")
-            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-        else:
-            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
 
 def test_configuration(params, tuning_dataset):
+    """Tests the effectiveness of a set of parameters on a tuning dataset
+
+    Args:
+        params (dict): The model configuration (parameters)
+        tuning_dataset ([str]): List of problems to test on 
+
+    Returns:
+        [float], [float], [float], [float], [float]: The medians, lower quartiles, upper quartiles, execution times, mutation similarities, crossover similarities for all problems
+    """
     medians = []
     q1s = []
     q3s = []
@@ -605,6 +636,14 @@ def test_configuration(params, tuning_dataset):
     return medians, q1s, q3s, exec_times, mutation_similarities, crossover_similarities
 
 def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
+    """Traverses hyperparameter ranges, testing each configuration
+
+    Args:
+        ranges (dict): A dictionary of model parameters to be tuned, and the values they can take
+        tuning_problems ([str]): The problems used for tuning
+        filepath (str): The location to save results
+        plot_param (str, optional): The string of a parameter to plot graphs for. Useful when tuning a singular parameter. Defaults to None.
+    """
     #Creates list of parameter combinations
     keys = ranges.keys()
     values = ranges.values()
@@ -750,62 +789,16 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             plt.savefig(f"{filepath}/{plot_param}_time_plot_p{p}.pdf", dpi=300)
             plt.show()
 
-def main():
-    #Parameters
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
-    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
-
-    problem_list = "problems/ground_truth.txt"
-    num_runs = 1
-    num_problems = 1
-
-    adaptive_params = {
-        "pop_size": 10, #250
-        "gens": 10,
-        "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.8,
-        "mutpb": 0.1,
-        "k": 5,
-        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True,
-        "self_adapt_req": None, #Can be set to None (5 works well)
-        "default_temperature": 0.3,
-        "temperature_alpha": 0.1,
-        "maximum_stagnation": 10,
-        "model": "openai/gpt-oss-120b",
-        "reasoning_model": True
-    }
-
-    standard_params = {
-        "pop_size": 10, #250
-        "gens": 10,
-        "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.8,
-        "mutpb": 0.1,
-        "k": 100000,
-        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True,
-        "self_adapt_req": None, #Can be set to None (5 works well)
-        "default_temperature": 0.3,
-        "temperature_alpha": 0.1,
-        "maximum_stagnation": 10,
-        "model": None,
-        "reasoning_model": False
-    }
-
-    #Finds all ground truth datasets
-    with open(problem_list, "r") as f:
-        problems = [line.strip() for line in f if line.strip()]
-
-    #Chooses 10 random problems
-    datasets = random.sample(problems, num_problems)
-
-    # compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
-    # compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
-
 ####MAIN FUNCTIONS####
 
-def tune_gp_model(tuning_ranges, plot_param, directory_name):
+def tune_gp_model(tuning_ranges, directory_name, plot_param=None):
+    """Tunes a GP model with given ranges on 3 problem instances.
+
+    Args:
+        tuning_ranges (dict): Parameter ranges
+        plot_param (str): The name of the parameter to plot graphs for. Defaults to None.
+        directory_name (str): The location to save results
+    """
     #Chosen as they cover different areas of the problem space
     problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
 
@@ -818,6 +811,12 @@ def tune_gp_model(tuning_ranges, plot_param, directory_name):
     hyperparameter_tuning(tuning_ranges, problems, directory_name, plot_param=plot_param)
 
 def model_comparisons(params, names):
+    """Compares multiple models
+
+    Args:
+        params ([dict]): The parameters for each model
+        names ([str]): The names fo each model
+    """
 
     #Make directory for overall results
     overall_directory_name = f"results/overall_results"
@@ -903,7 +902,49 @@ def model_comparisons(params, names):
     if success_rate_per_model:
         bar_chart("LLM-Design Success Rate", "Success Rate (%)", names[:-1], success_rate_per_model, f"{overall_directory_name}/success_rate.pdf")
         
+def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10):
+    """Compare 2 approaches, performing statistical testing between them
+
+    Args:
+        dataset ([str]): Names of problems to investigate from PMLB dataset
+        alg1_name (str): Name of first model
+        alg2_name (str): Name of second model
+        alg1_params (dict): Parameters of first model
+        alg2_params (dict): Parameters of second model
+        num_runs (int, optional): Number of iterations of each problem to run. Defaults to 10.
+    """
+    for problem in dataset:
+        #Make directory for results
+        directory_name = f"results/{problem}"
+        try:
+            os.mkdir(directory_name)
+        except FileExistsError:
+            pass
+
+        traditional_stats = run_problem_instance(problem, alg1_params, alg1_name, num_runs=num_runs)
+        adaptive_stats = run_problem_instance(problem, alg2_params, alg2_name, num_runs=num_runs)
+
+        p_value, test_statistic, diff = statistical_testing(traditional_stats["min_testing_fitness"], adaptive_stats["min_testing_fitness"], 0.05)
+
+        log = open(f"{directory_name}/{alg1_name}__{alg2_name}.txt", "w")
+        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
+        log.write(f"Wilcoxon Signed Rank Test Statistic:: {test_statistic}\n")
+        log.write(f"p-value: {p_value}\n")
+        if diff:
+            print("Reject the null hypothesis: There is a significant difference between the two samples.")
+            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
+        else:
+            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
+            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
+        
 def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name):
+    """Compares model performance on blackbox versus ground truth problems
+
+    Args:
+        optimal_parameters (dict): The parameters of the main model to use
+        standard_model_params (dict): The parameters of the model to use without an LLM component
+        model_name (str): The name of the optimal model to use
+    """
     ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_5", "feynman_I_18_4", "feynman_II_6_15b", "feynman_III_17_37", "strogatz_barmag2", "strogatz_lv1", "strogatz_predprey1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic", "529_pollen", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
 
@@ -980,6 +1021,7 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
 
     compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
 
+#TODO: Clean up this function
 if __name__ == "__main__":
     #Set up creator object
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
@@ -1033,8 +1075,6 @@ if __name__ == "__main__":
         "reasoning_model": [False]
     }
 
-    # tune_gp_model(tuning_ranges, "k", "results/k_tuning")
-
     testing_params_custom_op = {
         "pop_size": 10, #250
         "gens": 15,
@@ -1074,7 +1114,19 @@ if __name__ == "__main__":
     #     current_parameters["reasoning_model"] = reasoning[i]
     #     model_name = model_names[i]
 
+    # compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
+    # compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
+
+
     model_comparisons([testing_params_custom_op, testing_params], ["Best-Performing Operator", "Standard GP"])
 
-#TODO
-#Test loading custom operator design
+# Results:
+# 1. Tune baseline GP (no LLM) - tune_gp_model
+# 2. Tune k (plot k) - tune_gp_model
+# 3. Tune self-adapt + default temp (no plot) - tune_gp_model
+# 4. Compare multiple models - model_comparisons(params, names)
+# 5. Black box vs Ground Truth for optimal setup - blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name)
+# 6. Compare optimal LLM-GP against Standard GP - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
+# 7. Compare optimal LLM-GP against GP with Fixed Operator Design - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
+# 8. Compare Fixed Operator Design GP against Standard GP - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
+
