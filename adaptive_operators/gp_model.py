@@ -36,7 +36,6 @@ from util import pickle_object
 
 class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     """A scikit-learn regressor model for an evolutionary algorithm with adaptive operators
-    TODO - Update doc string
 
     Parameters
     ----------
@@ -76,7 +75,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
     feature_names_in_ : ndarray of shape (`n_features_in_`,)
         Names of features seen during :term:`fit`. Defined only when `X`
         has feature names that are all strings.
-        #TODO: Add feature names?
 
     """
 
@@ -283,7 +281,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             pset.addPrimitive(func_details[0], func_details[1])
 
         #Adds ephemeral constants
-        #TODO: Do we define what values they can take in problem definition?
         pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
 
         return pset
@@ -321,7 +318,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         Returns:
             float: The MSE value
         """
-        #TODO: Work for multiple Y values
         #Transform the tree expression in a callable function
         func = self.toolbox.compile(expr=individual) 
 
@@ -350,9 +346,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         Returns:
             AdaptiveRegressor: Returns self.
         """
-        #TODO: Check this line
-        # X, y = self._validate_params(X, y, accept_sparse=True)
-
         #Remove headers, if applicable
         if hasattr(X, "values"):
             X = X.values
@@ -421,6 +414,4 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             best_solution = self.hof_[0]
             func = self.toolbox.compile(expr=best_solution) 
 
-        #TODO: Check line
-        # X = self._validate_params(X)
         return np.array([func(*row) for row in X])

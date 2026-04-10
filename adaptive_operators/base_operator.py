@@ -269,7 +269,7 @@ class BaseOperator():
 
         #Saves the resulting function - can be reaccessed
         self.operator_design = clean_llm_output(code)
-        self.operator_design_validated = False #TODO: Merge these variables
+        self.operator_design_validated = False
         self.current_operator_module = None
 
     def llm_custom_operator_daytona(self, individuals):
@@ -390,8 +390,6 @@ class BaseOperator():
         Returns:
             [gp.Individual]: A list of the offspring of the operation
         """
-        #TODO: Wrap in try except - redesign if crashes
-
         #Ensure that the Python design is saved locally
         if self.current_operator_module == None:
             wrapper_text = self.local_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", self.operator_design)
@@ -409,7 +407,6 @@ class BaseOperator():
                 if not self.validate_individual(offspring[i]):
                     raise Exception("Invalid offspring generated")
 
-            #TODO: Reset num_retries at end of generation
             #Only once the module has been operated locally, do we accept the design
             self.num_retries = 0
             self.total_operator_evals += 1

@@ -140,8 +140,6 @@ def complexity(est):
     
     return len(best_model)
 
-#TODO: Hyperparameter tuning by wrapping in sklearn CV class
-
 est = AdaptiveRegressor(
     pop_size=200,
     gens=40,

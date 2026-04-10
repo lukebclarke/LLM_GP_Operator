@@ -17,11 +17,7 @@ from itertools import product
 import scipy.stats as stats
 import statistics
 
-from deap import algorithms
-from deap import base
-from deap import creator
-from deap import tools
-from deap import gp
+from deap import algorithms, base, creator, tools, gp
 
 from sklearn.model_selection import train_test_split
 
@@ -351,7 +347,6 @@ def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_t
     plt.legend(["Win", "Tie", "Losses"])
     plt.title("Performance of LLM-Based GP against Standard GP")
     plt.savefig("results/groundtruth_blackbox.pdf", dpi=300)
-    plt.show()
 
     #Boxpot for Improvements
     plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
@@ -416,7 +411,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         #Defines random seed
         params["random_state"] = 42 + i
         
-        #TODO: Prevent this from crashing altogether
+        #Retries if crashes
         for i in range(10):
             start_time = time.time()
 
@@ -665,7 +660,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
         #Set up parameters
         current_params = {
             "pop_size": parameters[i]["pop_size"],
-            "gens": 10, #TODO: Change
+            "gens": 50,
             "max_time": 8.0 * 60.0 * 60.0,
             "cxpb": parameters[i]["cxpb"],
             "mutpb": parameters[i]["mutpb"],
@@ -773,9 +768,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             ax.set_xlabel(f"{plot_param} Value")
             ax.set_ylabel("Minimum Testing Fitness")   
             ax.set_title(f"Fitness for {plot_param} Value") 
-   
             plt.savefig(f"{filepath}/{plot_param}_fitness_plot_p{p}.pdf", dpi=300)
-            plt.show()
 
             #Plots execution timegraph
             fig = plt.figure(figsize=[7,5])
@@ -785,9 +778,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             ax.set_xlabel(f"{plot_param} Value")
             ax.set_ylabel("Mean Execution Time (Seconds)")
             ax.set_title(f"Execution Time for {plot_param} Value") 
-
             plt.savefig(f"{filepath}/{plot_param}_time_plot_p{p}.pdf", dpi=300)
-            plt.show()
 
 ####MAIN FUNCTIONS####
 
@@ -838,7 +829,7 @@ def model_comparisons(params, names):
     redesign_success_rates = {name: [] for name in names[:-1]}
 
     #Iterates through problems TODO: Update to iterate through all problems
-    for problem in test_problems:
+    for problem in all_problems:
 
         #Make directory for results
         directory_name = f"results/{problem}"
@@ -861,7 +852,7 @@ def model_comparisons(params, names):
             current_parameters = params[i]
             model_name = names[i]
 
-            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=2, save_results=True) #TODO: Change num runs
+            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=10, save_results=True)
             training_fitnesses.append(stats["min_training_fitness"])
             testing_fitnesses.append(stats["all_testing_fitness"])
             avg_sizes.append(stats["avg_training_size"])
@@ -961,7 +952,6 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
 
     redesign_gens = []
 
-    #TODO: Do something with improvement
     for problem in ground_truth_problems:
         #Make directory for results
         directory_name = f"results/{problem}"
@@ -970,9 +960,8 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         except FileExistsError:
             pass
 
-        #TODO: Change num_runs to 10
-        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 2, True)
-        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 2, True)
+        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 10, True)
+        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 10, True)
         
         #Evaluate based on testing fitnesses
         adaptive_testing_fitnesses = adaptive_stats["all_testing_fitness"]
@@ -999,8 +988,8 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         except FileExistsError:
             pass
 
-        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 2, True)
-        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 2, True)
+        adaptive_stats = run_problem_instance(problem, optimal_parameters, model_name, 10, True)
+        standard_stats = run_problem_instance(problem, standard_model_params, "No_LLM", 10, True)
         
         #Evaluate based on testing fitnesses
         adaptive_testing_fitnesses = adaptive_stats["all_testing_fitness"]
@@ -1020,113 +1009,3 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
             black_box_losses += 1
 
     compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
-
-#TODO: Clean up this function
-if __name__ == "__main__":
-    #Set up creator object
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
-    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
-
-    #Leave model and reasoning_model as None
-    standard_params = {
-        "pop_size": 10, #250
-        "gens": 15,
-        "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.8,
-        "mutpb": 0.1,
-        "k": 3, 
-        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True,
-        "self_adapt_req": None, #Can be set to None (5 works well)
-        "default_temperature": 0.3,
-        "temperature_alpha": 0.1,
-        "maximum_stagnation": 10,
-        "model": None,
-        "reasoning_model": False
-    }
-
-    testing_params = {
-        "pop_size": 10, #250
-        "gens": 5,
-        "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.8,
-        "mutpb": 0.1,
-        "k": 5, 
-        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True,
-        "self_adapt_req": None, #Can be set to None (5 works well)
-        "default_temperature": 0.3,
-        "temperature_alpha": 0.1,
-        "maximum_stagnation": 10,
-        "model": None,
-        "reasoning_model": False
-    }
-
-    tuning_ranges = {
-        "pop_size": [10], #250
-        "cxpb": [0.8],
-        "mutpb": [0.1],
-        "tourn_size": [3],
-        "k": [1,2],
-        "self_adapt_req": [None], #Can be set to None (5 works well)
-        "default_temperature": [0.3],
-        "temperature_alpha": [0.1],
-        "model": [None],
-        "reasoning_model": [False]
-    }
-
-    testing_params_custom_op = {
-        "pop_size": 10, #250
-        "gens": 15,
-        "max_time": 8.0 * 60.0 * 60.0,
-        "cxpb": 0.8,
-        "mutpb": 0.1,
-        "k": 1000, 
-        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-        "verbose": True,
-        "self_adapt_req": None, #Can be set to None (5 works well)
-        "default_temperature": 0.3,
-        "temperature_alpha": 0.1,
-        "maximum_stagnation": 10,
-        "model": None,
-        "reasoning_model": False,
-        "custom_crossover_filepath": "docs/default_crossover_design.txt",
-        "custom_mutation_filepath": "docs/default_mutation_design.txt"
-    }
-
-    models = ["Qwen/Qwen3-Coder-Next-FP8", "zai-org/GLM-5", "moonshotai/Kimi-K2.5", "openai/gpt-oss-120b", "deepseek-ai/DeepSeek-V3.1", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
-    model_names = ["Qwen3-Coder", "GLM-5", "Kimi K2.5", "GPT OSS 120b", "DeepSeek V3.1", "Llama 3.3 70b", "No LLM"]
-    reasoning = [False, True, True, True, True, False, False]
-
-    #Testing
-    models = [None, None]
-    model_names = ["Standard 1", "Standard 2", "Standard 3", "Standard 4"]
-    reasoning = [False, False, False, False]
-
-    # #LLM Testing
-    # models = ["openai/gpt-oss-120b", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
-    # model_names = ["GPT", "Llama", "No LLM"]
-    # reasoning = [True, False, False]
-
-    # for i in range(len(models)):
-    #     current_parameters = optimal_parameters.copy()
-    #     current_parameters["model"] = models[i]
-    #     current_parameters["reasoning_model"] = reasoning[i]
-    #     model_name = model_names[i]
-
-    # compare_two_approaches(datasets, "GPT-OSS-120b", "Standard", adaptive_params, standard_params, num_runs=num_runs)
-    # compare_llms_on_problems(datasets, ["Standard1", "Standard2", "Standard3"], [standard_params, standard_params, standard_params], 3)
-
-
-    model_comparisons([testing_params_custom_op, testing_params], ["Best-Performing Operator", "Standard GP"])
-
-# Results:
-# 1. Tune baseline GP (no LLM) - tune_gp_model
-# 2. Tune k (plot k) - tune_gp_model
-# 3. Tune self-adapt + default temp (no plot) - tune_gp_model
-# 4. Compare multiple models - model_comparisons(params, names)
-# 5. Black box vs Ground Truth for optimal setup - blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name)
-# 6. Compare optimal LLM-GP against Standard GP - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
-# 7. Compare optimal LLM-GP against GP with Fixed Operator Design - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
-# 8. Compare Fixed Operator Design GP against Standard GP - compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10)
-
