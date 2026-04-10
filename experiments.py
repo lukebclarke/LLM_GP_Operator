@@ -1,5 +1,4 @@
 from adaptive_operators.gp_model import AdaptiveRegressor
-from standard_operators.gp_model import StandardRegressor
 from adaptive_operators.base_operator import MaximumNumberRetries
 from util import get_similarity
 
