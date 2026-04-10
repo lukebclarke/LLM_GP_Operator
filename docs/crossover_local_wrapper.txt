@@ -1,6 +1,7 @@
 from deap import base, creator, tools, gp
 import gp_primitives
 import random
+from collections import defaultdict
 
 INSERT_METHOD_DEFINITION_HERE
 

@@ -1,11 +1,10 @@
-def mutation(individual, expr, pset):
+def mutate_individual(individual, pset):
     """Randomly select a point in the tree *individual*, then replace the
     subtree at that point as a root by the expression generated using method
     :func:`expr`.
 
     :param individual: The tree to be mutated.
-    :param expr: A function object that can generate an expression when
-                 called.
+
     :returns: A tuple of one tree.
     """
     mu = 0.0
@@ -15,5 +14,5 @@ def mutation(individual, expr, pset):
     index = random.randrange(len(individual))
     slice_ = individual.searchSubtree(index)
     type_ = individual[index].ret
-    individual[slice_] = expr(pset=pset, type_=type_)
+    individual[slice_] = gp.genFull(pset=pset, min_=0, max_=2)
     return individual,

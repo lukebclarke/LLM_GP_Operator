@@ -125,7 +125,7 @@ class AdaptiveGP():
         if crossover_effectiveness or mutation_effectiveness:
             stats["redesign_success_rate"] = (crossover_effectiveness + mutation_effectiveness) / 2
         else:
-            stats["redesign_success_rate"] = 0
+            stats["redesign_success_rate"] = None
 
         return stats
 

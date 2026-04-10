@@ -148,7 +148,7 @@ def plot_boxplot(names, values, title, y_label, filepath=None):
     ax = plt.subplot(111)
 
     #Generates box plot
-    bplot = ax.boxplot(values, tick_labels=names, patch_artist=True)
+    bplot = ax.boxplot(values, tick_labels=names, patch_artist=True, showfliers=False)
 
     #Gets default matplotlib colours
     prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -316,8 +316,8 @@ def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_t
     plt.ylabel("Number of Problems")
     plt.legend(["Win", "Tie", "Losses"])
     plt.title("Performance of LLM-Based GP against Standard GP")
-    plt.show()
     plt.savefig("results/groundtruth_blackbox.pdf", dpi=300)
+    plt.show()
 
     #Boxpot for Improvements
     plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
@@ -591,7 +591,7 @@ def test_configuration(params, tuning_dataset):
         stats = run_problem_instance(problem, params, None, 5, save_results=False)
 
         testing_fitnesses = stats["all_testing_fitness"]
-        execution_times = stats["avg_execution_time"]
+        execution_times = stats["all_execution_times"]
 
         #Return the median fitness from testing
         median, q1, q3 = analyse_across_runs(testing_fitnesses)
@@ -691,6 +691,13 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             f.write(f"Problem 3 Rank: {parameter_rankings[param][2]}\n")
             f.write(f"Average Rank: {parameter_rankings[param][-1]}\n\n")
 
+            valid = [v for v in tuning_mut_similarities[param] if v is not None]
+            mut_mean = np.mean(valid) if valid else 0
+            valid = [v for v in tuning_cross_similarities[param] if v is not None]
+            cross_mean = np.mean(valid) if valid else 0
+            f.write(f"Average Mutation Similarity: {mut_mean}\n")
+            f.write(f"Average Crossover Similarity: {cross_mean}\n\n")
+
         f.write("Best configuration:\n")
         f.write(str(sorted_ranks[0][0]))
 
@@ -701,7 +708,10 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             median = []
             q1 = []
             q3 = []
-            exec_times = []
+
+            exec_median = []
+            exec_q1 = []
+            exec_q3 = []
 
             #Finds values for lower quartile, upper quartile, and median
             for i in range(len(tuning_medians)):
@@ -711,7 +721,10 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
                 median.append(tuning_medians[parameter_tuple][p])
                 q1.append(tuning_q1s[parameter_tuple][p])
                 q3.append(tuning_q3s[parameter_tuple][p])
-                exec_times.append(tuning_exec_times[parameter_tuple][p])
+
+                exec_median.append(np.median(tuning_exec_times[parameter_tuple][p])) 
+                exec_q1.append(np.percentile(tuning_exec_times[parameter_tuple][p], 25))
+                exec_q3.append(np.percentile(tuning_exec_times[parameter_tuple][p], 75))
 
             #Plots fitness graph
             fig = plt.figure(figsize=[7,5])
@@ -722,19 +735,19 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             ax.set_ylabel("Minimum Testing Fitness")   
             ax.set_title(f"Fitness for {plot_param} Value") 
    
-            plt.savefig(f"{filepath}/{plot_param}_fitness_plot.pdf", dpi=300)
+            plt.savefig(f"{filepath}/{plot_param}_fitness_plot_p{p}.pdf", dpi=300)
             plt.show()
 
             #Plots execution timegraph
             fig = plt.figure(figsize=[7,5])
             ax = plt.subplot(111)
-            ax.plot(x, median)
-            ax.fill_between(x, q1, q3, alpha=0.2)
+            ax.plot(x, exec_median)
+            ax.fill_between(x, exec_q1, exec_q3, alpha=0.2)
             ax.set_xlabel(f"{plot_param} Value")
             ax.set_ylabel("Mean Execution Time (Seconds)")
             ax.set_title(f"Execution Time for {plot_param} Value") 
 
-            plt.savefig(f"{filepath}/{plot_param}_time_plot.pdf", dpi=300)
+            plt.savefig(f"{filepath}/{plot_param}_time_plot_p{p}.pdf", dpi=300)
             plt.show()
 
 def main():
@@ -792,12 +805,11 @@ def main():
 
 ####MAIN FUNCTIONS####
 
-def tune_gp_model(tuning_ranges, plot_param):
+def tune_gp_model(tuning_ranges, plot_param, directory_name):
     #Chosen as they cover different areas of the problem space
     problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
 
     #Make directory for results
-    directory_name = f"results/hyperparameter_tuning"
     try:
         os.mkdir(directory_name)
     except FileExistsError:
@@ -805,7 +817,7 @@ def tune_gp_model(tuning_ranges, plot_param):
 
     hyperparameter_tuning(tuning_ranges, problems, directory_name, plot_param=plot_param)
 
-def model_comparisons(optimal_parameters):
+def model_comparisons(params, names):
 
     #Make directory for overall results
     overall_directory_name = f"results/overall_results"
@@ -813,20 +825,6 @@ def model_comparisons(optimal_parameters):
         os.mkdir(overall_directory_name)
     except FileExistsError:
         pass
-
-    models = ["Qwen/Qwen3-Coder-Next-FP8", "zai-org/GLM-5", "moonshotai/Kimi-K2.5", "openai/gpt-oss-120b", "deepseek-ai/DeepSeek-V3.1", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
-    model_names = ["Qwen3-Coder", "GLM-5", "Kimi K2.5", "GPT OSS 120b", "DeepSeek V3.1", "Llama 3.3 70b", "No LLM"]
-    reasoning = [False, True, True, True, True, False, False]
-
-    # #Testing
-    # models = [None, None, None, None]
-    # model_names = ["Standard 1", "Standard 2", "Standard 3", "Standard 4"]
-    # reasoning = [False, False, False, False]
-
-    #LLM Testing
-    models = ["openai/gpt-oss-120b", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
-    model_names = ["GPT", "Llama", "No LLM"]
-    reasoning = [True, False, False]
 
     #Choose 8 representative problems
     ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_10"]
@@ -836,9 +834,9 @@ def model_comparisons(optimal_parameters):
     test_problems = ["201_pol", "620_fri_c1_1000_25"]
 
     #Universal statistics (i.e. across all problems) per model
-    mutation_similarities =  {name: [] for name in model_names[:-1]}
-    crossover_similarities = {name: [] for name in model_names[:-1]}
-    redesign_success_rates = {name: [] for name in model_names[:-1]}
+    mutation_similarities =  {name: [] for name in names[:-1]}
+    crossover_similarities = {name: [] for name in names[:-1]}
+    redesign_success_rates = {name: [] for name in names[:-1]}
 
     #Iterates through problems TODO: Update to iterate through all problems
     for problem in test_problems:
@@ -860,11 +858,9 @@ def model_comparisons(optimal_parameters):
         average_execution_times = []
 
         #Runs the problem with each model
-        for i in range(len(models)):
-            current_parameters = optimal_parameters.copy()
-            current_parameters["model"] = models[i]
-            current_parameters["reasoning_model"] = reasoning[i]
-            model_name = model_names[i]
+        for i in range(len(params)):
+            current_parameters = params[i]
+            model_name = names[i]
 
             stats = run_problem_instance(problem, current_parameters, model_name, num_runs=2, save_results=True) #TODO: Change num runs
             training_fitnesses.append(stats["min_training_fitness"])
@@ -876,7 +872,7 @@ def model_comparisons(optimal_parameters):
             average_execution_times.append(stats["avg_execution_time"])
 
             #Do not calculate similarity for non-LLM based GP
-            if i != (len(model_names) - 1):
+            if i != (len(names) - 1):
                 mut_sim = stats["mutation_similarity"]
                 cross_sim = stats["crossover_similarity"]
                 if mut_sim != None:
@@ -885,25 +881,30 @@ def model_comparisons(optimal_parameters):
                 if cross_sim != None:
                     crossover_similarities[model_name].append(cross_sim)
 
-                redesign_success_rates[model_name].append(stats["redesign_success_rate"] * 100)
+                if stats["redesign_success_rate"] is not None:
+                    redesign_success_rates[model_name].append((stats["redesign_success_rate"] * 100))
 
         #Plots
-        plot_minimum_fitnesses(model_names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
-        plot_boxplot(model_names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
-        plot_avg_size(model_names, avg_sizes, f"{directory_name}/avg_size.pdf")
-        bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", model_names, solve_rates, f"{directory_name}/solve_rate.pdf")
-        bar_chart("Average Runtime", "Runtime (Seconds)", model_names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
-        scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", model_names, execution_times, testing_fitnesses)
+        plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
+        plot_boxplot(names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
+        plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
+        bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, solve_rates, f"{directory_name}/solve_rate.pdf")
+        bar_chart("Average Runtime", "Runtime (Seconds)", names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
+        scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", names, execution_times, testing_fitnesses)
 
     #Finds averages across all problems
-    mutation_similarities_per_model = [sum(similarities) / len(similarities) for similarities in mutation_similarities.values()]
-    crossover_similarities_per_model = [sum(similarities) / len(similarities) for similarities in crossover_similarities.values()]
-    success_rate_per_model = [sum(sr) / len(sr) for sr in redesign_success_rates.values()]
-    similarity_bar_chart(model_names[:-1], mutation_similarities_per_model, crossover_similarities_per_model, f"{overall_directory_name}/similarity_chart.pdf")
-    bar_chart("LLM-Design Success Rate", "Success Rate (%)", model_names[:-1], success_rate_per_model, f"{overall_directory_name}/success_rate.pdf")
-    
+    mutation_similarities_per_model = [sum(similarities) / len(similarities) for similarities in mutation_similarities.values() if len(similarities) > 0]
+    crossover_similarities_per_model = [sum(similarities) / len(similarities) for similarities in crossover_similarities.values() if len(similarities) > 0]
+    success_rate_per_model = [sum(sr) / len(sr) for sr in redesign_success_rates.values() if len(sr) > 0]
+
+    if mutation_similarities_per_model and crossover_similarities_per_model:
+        similarity_bar_chart(names[:-1], mutation_similarities_per_model, crossover_similarities_per_model, f"{overall_directory_name}/similarity_chart.pdf")
+
+    if success_rate_per_model:
+        bar_chart("LLM-Design Success Rate", "Success Rate (%)", names[:-1], success_rate_per_model, f"{overall_directory_name}/success_rate.pdf")
+        
 def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name):
-    ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_10", "feynman_I_18_4", "feynman_II_6_15b", "feynman_III_17_37", "strogatz_barmag2", "strogatz_lv1", "strogatz_predprey1"]
+    ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_5", "feynman_I_18_4", "feynman_II_6_15b", "feynman_III_17_37", "strogatz_barmag2", "strogatz_lv1", "strogatz_predprey1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic", "529_pollen", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
 
     ground_truth_wins = 0
@@ -944,7 +945,7 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
 
         if adaptive_median < standard_median:
             ground_truth_wins += 1
-        if adaptive_median == standard_median:
+        elif adaptive_median == standard_median:
             ground_truth_ties += 1
         else:
             ground_truth_losses += 1
@@ -972,7 +973,7 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         
         if adaptive_median < standard_median:
             black_box_wins += 1
-        if adaptive_median == standard_median:
+        elif adaptive_median == standard_median:
             black_box_ties += 1
         else:
             black_box_losses += 1
@@ -1024,7 +1025,7 @@ if __name__ == "__main__":
         "cxpb": [0.8],
         "mutpb": [0.1],
         "tourn_size": [3],
-        "k": [1,2,3,4],
+        "k": [1,2],
         "self_adapt_req": [None], #Can be set to None (5 works well)
         "default_temperature": [0.3],
         "temperature_alpha": [0.1],
@@ -1032,8 +1033,48 @@ if __name__ == "__main__":
         "reasoning_model": [False]
     }
 
-    blackbox_vs_groundtruth(standard_params, standard_params, "Standard1")
+    # tune_gp_model(tuning_ranges, "k", "results/k_tuning")
+
+    testing_params_custom_op = {
+        "pop_size": 10, #250
+        "gens": 15,
+        "max_time": 8.0 * 60.0 * 60.0,
+        "cxpb": 0.8,
+        "mutpb": 0.1,
+        "k": 1000, 
+        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+        "verbose": True,
+        "self_adapt_req": None, #Can be set to None (5 works well)
+        "default_temperature": 0.3,
+        "temperature_alpha": 0.1,
+        "maximum_stagnation": 10,
+        "model": None,
+        "reasoning_model": False,
+        "custom_crossover_filepath": "docs/default_crossover_design.txt",
+        "custom_mutation_filepath": "docs/default_mutation_design.txt"
+    }
+
+    models = ["Qwen/Qwen3-Coder-Next-FP8", "zai-org/GLM-5", "moonshotai/Kimi-K2.5", "openai/gpt-oss-120b", "deepseek-ai/DeepSeek-V3.1", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
+    model_names = ["Qwen3-Coder", "GLM-5", "Kimi K2.5", "GPT OSS 120b", "DeepSeek V3.1", "Llama 3.3 70b", "No LLM"]
+    reasoning = [False, True, True, True, True, False, False]
+
+    #Testing
+    models = [None, None]
+    model_names = ["Standard 1", "Standard 2", "Standard 3", "Standard 4"]
+    reasoning = [False, False, False, False]
+
+    # #LLM Testing
+    # models = ["openai/gpt-oss-120b", "meta-llama/Llama-3.3-70B-Instruct-Turbo", None]
+    # model_names = ["GPT", "Llama", "No LLM"]
+    # reasoning = [True, False, False]
+
+    # for i in range(len(models)):
+    #     current_parameters = optimal_parameters.copy()
+    #     current_parameters["model"] = models[i]
+    #     current_parameters["reasoning_model"] = reasoning[i]
+    #     model_name = model_names[i]
+
+    model_comparisons([testing_params_custom_op, testing_params], ["Best-Performing Operator", "Standard GP"])
 
 #TODO
-#Tune self-adaptation (compare similarity?)
 #Test loading custom operator design

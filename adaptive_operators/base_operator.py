@@ -419,6 +419,7 @@ class BaseOperator():
         #Redesign if code is unable to execute locally
         except Exception as e:
             self.total_operator_skips += 1
+            print(e)
             if self.total_operator_skips >= self.max_local_skips:
                 print("Maximum number of local skips exceeded, redesigning operator...")
                 self.redesign_operator()

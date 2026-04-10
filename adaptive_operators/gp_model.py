@@ -120,7 +120,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.temperature_alpha = temperature_alpha
         self.maximum_stagnation = maximum_stagnation
         self.custom_crossover_filepath = custom_crossover_filepath
-        self.custom_mutation_filepath = custom_crossover_filepath
+        self.custom_mutation_filepath = custom_mutation_filepath
 
         self.model = model
         self.reasoning_model = reasoning_model

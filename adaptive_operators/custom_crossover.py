@@ -30,11 +30,11 @@ class CustomCrossover(BaseOperator):
         with open("docs/LLMPromptCrossover.txt", "r") as f:
             self.original_llm_prompt = f.read()
         self.llm_prompt = None
-        
-        self.custom_local_design = None
+
         if custom_operator_filepath:
             with open(custom_operator_filepath, "r") as f:
-                self.custom_local_design = f.read()
+                self.operator_design = f.read()
+            self.operator_design_validated = True
 
         #Enables us to import crossover design stored in temp folder 
         sys.path.append('/temp')

@@ -1,27 +1,28 @@
-def crossover(ind1, ind2):
+def crossover_individuals(individual1, individual2, pset):
     """Randomly select crossover point in each individual and exchange each
     subtree with the point as root between each individual.
 
-    :param ind1: First tree participating in the crossover.
-    :param ind2: Second tree participating in the crossover.
+    :param individual1: First tree participating in the crossover.
+    :param individual2: Second tree participating in the crossover.
     :returns: A tuple of two trees.
     """
-    if len(ind1) < 2 or len(ind2) < 2:
+
+    if len(individual1) < 2 or len(individual2) < 2:
         # No crossover on single node tree
-        return ind1, ind2
+        return individual1, individual2
 
     # List all available primitive types in each individual
     types1 = defaultdict(list)
     types2 = defaultdict(list)
-    if ind1.root.ret == __type__:
+    if individual1.root.ret == object:
         # Not STGP optimization
-        types1[__type__] = list(range(1, len(ind1)))
-        types2[__type__] = list(range(1, len(ind2)))
-        common_types = [__type__]
+        types1[object] = list(range(1, len(individual1)))
+        types2[object] = list(range(1, len(individual2)))
+        common_types = [object]
     else:
-        for idx, node in enumerate(ind1[1:], 1):
+        for idx, node in enumerate(individual1[1:], 1):
             types1[node.ret].append(idx)
-        for idx, node in enumerate(ind2[1:], 1):
+        for idx, node in enumerate(individual2[1:], 1):
             types2[node.ret].append(idx)
         common_types = set(types1.keys()).intersection(set(types2.keys()))
 
@@ -31,8 +32,8 @@ def crossover(ind1, ind2):
         index1 = random.choice(types1[type_])
         index2 = random.choice(types2[type_])
 
-        slice1 = ind1.searchSubtree(index1)
-        slice2 = ind2.searchSubtree(index2)
-        ind1[slice1], ind2[slice2] = ind2[slice2], ind1[slice1]
+        slice1 = individual1.searchSubtree(index1)
+        slice2 = individual2.searchSubtree(index2)
+        individual1[slice1], individual2[slice2] = individual2[slice2], individual1[slice1]
 
-    return ind1, ind2
+    return individual1, individual2

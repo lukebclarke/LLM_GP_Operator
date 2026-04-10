@@ -35,7 +35,7 @@ class CustomMutation(BaseOperator):
             with open(custom_operator_filepath, "r") as f:
                 self.operator_design = f.read()
             self.operator_design_validated = True
-
+            
         #Enables us to import mutation design stored in temp folder 
         sys.path.append('/temp')
 
