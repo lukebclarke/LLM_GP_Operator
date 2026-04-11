@@ -1,6 +1,8 @@
 from adaptive_operators.gp_model import AdaptiveRegressor
 from adaptive_operators.base_operator import MaximumNumberRetries
 from util import get_similarity
+import logging
+import google.cloud.logging
 
 from pmlb import fetch_data
 import matplotlib.pyplot as plt
@@ -103,7 +105,6 @@ def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
     for i in range(len(runs)):
 
         median, q1, q3 = analyse_across_runs(runs[i])
-        print(median)
         x = np.arange(len(median))
         ax.plot(x, median, label=alg_names[i])
         ax.fill_between(x, q1, q3, alpha=0.2)
@@ -312,7 +313,9 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
     stat, p_value = stats.wilcoxon(alg1_fitnesses, alg2_fitnesses)
 
     print("Wilcoxon Signed Rank Test Statistic:", stat)
-    print("p-value:", p_value)
+    logging.info(f"Wilcoxon Signed Rank Test Statistic: {stat}")
+    print(f"p-value: {p_value}")
+    logging.info(f"p-value: {p_value}")
 
     diff = False
     if p_value < alpha:
@@ -365,6 +368,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     """
     #Gets training and testing data
     print(problem_name)
+    logging.info(problem_name)
     X, Y = fetch_data(problem_name, return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
@@ -479,7 +483,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     avg_redesigns_mut = sum(num_mutation_redesigns) / num_runs
     avg_redesigns_cx = sum(num_crossover_redesigns) / num_runs
     print(f"Number of mutation redesigns: {avg_redesigns_mut}")
+    logging.info(f"Number of mutation redesigns: {avg_redesigns_mut}")
     print(f"Number of crossover redesigns: {avg_redesigns_cx}")
+    logging.info(f"Number of crossover redesigns: {avg_redesigns_cx}")
 
     #Mutation similarity score
     if mutation_similarities:
@@ -501,7 +507,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
             avg_crossover_similarity = None
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
+    logging.info(f"Mutation similarity: {avg_mutation_similarity}")
     print(f"Crossover similarity: {avg_crossover_similarity}")
+    logging.info(f"Crossover similarity: {avg_crossover_similarity}")
 
     #Results on testing data
     avg_testing_fitness = np.mean(all_fit_testing)
@@ -712,6 +720,8 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
 
     print("Best configuration")
     print(sorted_ranks[0][0])
+    logging.info("Best configuration:")
+    logging.info(sorted_ranks[0][0])
 
     with open(f"{filepath}/tuning_results.txt", "w") as f:
         for param in parameter_rankings:
@@ -1008,3 +1018,42 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
             black_box_losses += 1
 
     compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
+
+if __name__ == "__main__":
+    #Setup logging for VM
+    # logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d - %(message)s"
+    )
+
+
+    if int(os.environ.get("PRODUCTION", 0)) == 1:
+        logging_client = google.cloud.logging.Client()
+        logging_client.setup_logging()
+
+    #Create results folder
+    try:
+        os.mkdir("results")
+    except FileExistsError:
+        pass
+
+    #Set up creator object
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
+    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
+
+    tuning_ranges = {
+    "pop_size": [10], #250
+    "cxpb": [0.8],
+    "mutpb": [0.1],
+    "tourn_size": [3],
+    "k": [1,2],
+    "self_adapt_req": [None], #Can be set to None (5 works well)
+    "default_temperature": [0.3],
+    "temperature_alpha": [0.1],
+    "model": [None],
+    "reasoning_model": [False]
+}
+
+    tune_gp_model(tuning_ranges, "results/standard_tuning", plot_param=None)
+

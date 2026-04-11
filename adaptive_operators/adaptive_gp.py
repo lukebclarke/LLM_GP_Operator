@@ -5,6 +5,7 @@ import os
 import numpy as np
 import time
 import threading
+import logging
 
 import numpy
 
@@ -17,9 +18,6 @@ from deap import tools
 from deap import gp
 
 from util import pickle_object
-
-#Visualisation
-import pygraphviz as pgv
 
 #LLM
 from google import genai
@@ -305,6 +303,7 @@ class AdaptiveGP():
         #There has not been an improvement in k generations - redesign operator design
         elif current_fitness >= self.prev_min_fitness and self.gens_since_redesign >= self.k:
             print("Stagnating.... Redesigning...")
+            logging.info("Stagnating.... Redesigning...")
             
             #Records number of effective redesigns
             self.custom_crossover.effective_redesigns += 1

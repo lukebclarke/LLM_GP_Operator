@@ -4,7 +4,6 @@ from deap import gp, base, creator
 from sympy import sympify
 import inspect
 import networkx as nx
-import pygraphviz as pgv
 import numpy as np
 import pandas as pd
 from functools import partial
