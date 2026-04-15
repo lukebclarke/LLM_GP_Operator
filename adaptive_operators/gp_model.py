@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 #Clients
 from together import Together
-from daytona import Daytona
+from daytona import Daytona, DaytonaConfig
 
 #Sklearn
 from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin, RegressorMixin, _fit_context
@@ -161,11 +161,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         """
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
+        print(f"API KEY: {api_key}")
 
         if api_key is None:
             raise Exception("Together API key not found")
 
         client = Together(api_key=api_key)
+
 
         return client
     
@@ -176,8 +178,17 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             result (dict): The dictionary used to store results. 'sandbox' provides access to the Daytona sandbox.
             timeout (float): The number 
         """
+        daytona_api_key = os.environ.get("DAYTONA_API_KEY") #Uses the TogetherAI API
+        print(f"API KEY: {daytona_api_key}")
+
+        config = DaytonaConfig(
+            api_key=daytona_api_key,
+            target="eu",
+            api_url="https://app.daytona.io/api"
+        )
+
         #Create Daytona sandbox client
-        daytonaClient = Daytona()
+        daytonaClient = Daytona(config)
         sandbox = daytonaClient.create(timeout=self.timeout)
         result["sandbox"] = sandbox
         print("Sandbox setup")
@@ -415,3 +426,13 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             func = self.toolbox.compile(expr=best_solution) 
 
         return np.array([func(*row) for row in X])
+
+    def complexity(self):
+        """Counts the number of nodes required to represent the final estimator's symbolic expression as a parse tree
+
+        Returns:
+            int: The count of the number of nodes in the final tree
+        """
+        best_model = self.hof_[0]
+        
+        return len(best_model)

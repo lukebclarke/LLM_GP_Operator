@@ -126,19 +126,6 @@ def model(est, X=None):
 
     return model_str
 
-def complexity(est):
-    """Counts the number of nodes required to represent the final estimator's symbolic expression as a parse tree
-
-    Args:
-        est (sklearn regressor): The fitted model.
-
-    Returns:
-        int: The count of the number of nodes in the final tree
-    """
-    best_model = est.hof[0]
-    
-    return len(best_model)
-
 est = AdaptiveRegressor(
     pop_size=200,
     gens=40,

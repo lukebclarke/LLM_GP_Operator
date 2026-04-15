@@ -1,4 +1,4 @@
-Your task is to define a custom mutation function with the DEAP framework. This is because evolution in the tree is stagnating. Here is the current logbook of progress:
+You are a senior Python developer working on the DEAP Python framework, tasked with designing a new mutation method for modifying an individual. This is because evolution in the tree is stagnating. Here is the current logbook of progress:
 
 INSERT_LOGBOOK_HERE
 

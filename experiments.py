@@ -398,13 +398,26 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     n_evals = []
     solved = []
     redesign_gens = []
+    complexities = []
     final_stats = {}
 
     for i in range(num_runs):
         
         #Deletes temp folder if already exists
-        if os.path.exists("temp"):
-            shutil.rmtree("temp")
+        for i in range(10):
+            try:
+                if os.path.exists("temp/mutation_designs"):
+                    shutil.rmtree("temp/mutation_designs")
+
+                if os.path.exists("temp/crossover_designs"):
+                    shutil.rmtree("temp/crossover_designs")
+
+                if os.path.exists("temp"):
+                    shutil.rmtree("temp")
+            
+            #Error may be raised if folders are open
+            except OSError:
+                time.sleep(1)
 
         #Create fresh temp folder (and sub-folders)
         os.makedirs("temp")
@@ -434,6 +447,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
 
         #Evaluate the mean squared error between the expression and the real function
         all_fit_testing.append(np.mean((ao_test - y_test) ** 2))
+
+        #Get size of final solution
+        complexities.append(ao_est.complexity())
 
         #Finds average size and minimum fitness for adaptive EA
         all_size_avg.append(ao_est.logbook_.chapters["size"].select("avg"))
@@ -533,6 +549,10 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     redesign_success_rate = ao_est.stats_["redesign_success_rate"]
     print(f"Redesign success rate: {redesign_success_rate}")
 
+    #TODO: COMPLEXITY
+    avg_complexity = sum(complexities) / len(complexities)
+    print(f"Average complexity: {avg_complexity}")
+
     #Find overall best operator designs
     if best_mutation_designs:
         best_mutation_design, best_mutation_stats = max(best_mutation_designs, key=lambda x: x[1]["score"])
@@ -568,6 +588,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         log.write(f"Minimum Testing Fitness (Standard Operator): {min_testing_fitness}\n")
 
         log.write("\n")
+        log.write(f"Average complexity: {avg_complexity}")
+
+        log.write("\n")
         log.write(f"Average execution time: {average_exec_time}")
 
         log.write("\n")
@@ -598,6 +621,8 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     final_stats["avg_training_size"] = all_size_avg
     final_stats["all_testing_fitness"] = all_fit_testing
     final_stats["redesign_gens"] = redesign_gens
+    final_stats["avg_complexity"] = avg_complexity
+    final_stats["complexities"] = complexities
 
     return final_stats
 
@@ -855,6 +880,7 @@ def model_comparisons(params, names):
         avg_n_evals = []
         execution_times = []
         average_execution_times = []
+        complexities = []
 
         #Runs the problem with each model
         for i in range(len(params)):
@@ -869,6 +895,7 @@ def model_comparisons(params, names):
             avg_n_evals.append(stats["avg_n_evals"])
             execution_times.append(stats["all_execution_times"])
             average_execution_times.append(stats["avg_execution_time"])
+            complexities.append(stats["complexities"])
 
             #Do not calculate similarity for non-LLM based GP
             if i != (len(names) - 1):
@@ -886,6 +913,7 @@ def model_comparisons(params, names):
         #Plots
         plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
         plot_boxplot(names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
+        plot_boxplot(names, complexities, "Complexity per Model", "No. Nodes in Best Solution", f"{directory_name}/complexity_boxplot.pdf")
         plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
         bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, solve_rates, f"{directory_name}/solve_rate.pdf")
         bar_chart("Average Runtime", "Runtime (Seconds)", names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
@@ -1027,7 +1055,6 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d - %(message)s"
     )
 
-
     if int(os.environ.get("PRODUCTION", 0)) == 1:
         logging_client = google.cloud.logging.Client()
         logging_client.setup_logging()
@@ -1042,18 +1069,44 @@ if __name__ == "__main__":
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
-    tuning_ranges = {
-    "pop_size": [10], #250
-    "cxpb": [0.8],
-    "mutpb": [0.1],
-    "tourn_size": [3],
-    "k": [1,2],
-    "self_adapt_req": [None], #Can be set to None (5 works well)
-    "default_temperature": [0.3],
-    "temperature_alpha": [0.1],
-    "model": [None],
-    "reasoning_model": [False]
-}
+    self_adaptation_ranges = {
+        "pop_size": [300], #250
+        "cxpb": [0.9],
+        "mutpb": [0.05],
+        "tourn_size": [7],
+        "k": [3, 4, 5, 6, 7],
+        "self_adapt_req": [None], #Can be set to None (5 works well)
+        "default_temperature": [0.1],
+        "temperature_alpha": [0.1],
+        "model": ["openai/gpt-oss-120b"],
+        "reasoning_model": [True]
+    }
 
-    tune_gp_model(tuning_ranges, "results/standard_tuning", plot_param=None)
+    tune_gp_model(self_adaptation_ranges, "results/self_adaptation", plot_param="k")
+
+    # optimal_parameters = {
+    #     "pop_size": 10, #250
+    #     "gens": 15,
+    #     "max_time": 8.0 * 60.0 * 60.0,
+    #     "cxpb": 0.8,
+    #     "mutpb": 0.1,
+    #     "k": 3, 
+    #     "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+    #     "verbose": True,
+    #     "self_adapt_req": None, #Can be set to None (5 works well)
+    #     "default_temperature": 0.3,
+    #     "temperature_alpha": 0.1,
+    #     "maximum_stagnation": 10,
+    #     "model": None,
+    #     "reasoning_model": False
+    # }
+    # model_names = ["Standard1", "Standard2", "Standard3"]
+
+    # #Gets parameters for each model
+    # parameters = []
+    # for i in range(3):
+    #     current_parameters = optimal_parameters.copy()
+    #     parameters.append(current_parameters)
+
+    # model_comparisons(parameters, model_names)
 

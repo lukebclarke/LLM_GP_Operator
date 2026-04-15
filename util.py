@@ -87,7 +87,10 @@ def clean_llm_output(output):
 
 def get_similarity(folder_path):
     #Gets all files in directory
-    files = os.listdir(folder_path)
+    try:
+        files = os.listdir(folder_path)
+    except FileNotFoundError:
+        return None
 
     if len(files) <= 1:
         return None

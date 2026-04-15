@@ -177,17 +177,17 @@ class AdaptiveGP():
         for gen in range(first_gen-1, current_gen-1):
             #Finds improvement in avg fitness from last generation
             avg_improvement = avg_fitness[gen] - avg_fitness[gen+1]
-            avg_improvement = max(0.2, avg_improvement) #Can't go below 0.2
+            avg_improvement = max(0, avg_improvement) #Can't go below 0.2
             percent_improvement_avg_fitness.append((avg_improvement) / abs(avg_fitness[gen]))
 
             #Finds improvement in minimum fitness from last generation
             min_improvement = min_fitness[gen] - min_fitness[gen+1]
-            min_improvement = max(0.2, min_improvement) #Can't go below 0.2
+            min_improvement = max(0, min_improvement) #Can't go below 0.2
             percent_improvement_min_fitness.append((min_improvement) / abs(min_fitness[gen]))
 
         #Calculates 'fitness' score of operator design
-        mean_min_fitness_improv = sum(percent_improvement_min_fitness) / len(percent_improvement_min_fitness)
-        mean_avg_fitness_improv = sum(percent_improvement_avg_fitness) / len(percent_improvement_avg_fitness)
+        mean_min_fitness_improv = max(0.01, (sum(percent_improvement_min_fitness) / len(percent_improvement_min_fitness)))
+        mean_avg_fitness_improv = max(0.01, (sum(percent_improvement_avg_fitness) / len(percent_improvement_avg_fitness)))
 
         #Updates statistics
         mutation_stats["success_rate"] = mutator_success_rate
