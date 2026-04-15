@@ -22,6 +22,9 @@ from deap import algorithms, base, creator, tools, gp
 
 from sklearn.model_selection import train_test_split
 
+import daytona
+from dotenv import load_dotenv
+
 from matplotlib.colors import TABLEAU_COLORS, same_color
 
 def pad_runs_multiple_algorithms(algorithm_runs):
@@ -1047,6 +1050,28 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
 
     compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
 
+def create_daytona_snapshot():
+    """Only used once - creates a snapshot that installs DEAP within a Daytona account. Snapshot can be accessed with "deap_snapshot"
+    """
+    load_dotenv()
+
+    daytona_api_key = os.environ.get("DAYTONA_API_KEY") #Uses the Daytona API
+    print(f"API KEY: {daytona_api_key}")
+
+    config = daytona.DaytonaConfig(
+        api_key=daytona_api_key.strip(),
+        target="eu"
+    )
+
+    #Create Daytona sandbox client
+    daytonaClient = daytona.Daytona(config)
+
+    image = daytona.Image.debian_slim('3.12').pip_install(["deap==1.4.1"])
+    daytonaClient.snapshot.create(
+        daytona.CreateSnapshotParams(name='deap_snapshot', image=image),
+        on_logs=lambda chunk: print(chunk, end=""),
+    )
+
 if __name__ == "__main__":
     #Setup logging for VM
     # logging.basicConfig(level=logging.INFO)
@@ -1079,10 +1104,13 @@ if __name__ == "__main__":
         "default_temperature": [0.1],
         "temperature_alpha": [0.1],
         "model": ["openai/gpt-oss-120b"],
-        "reasoning_model": [True]
+        "reasoning_model": [True],
     }
 
     tune_gp_model(self_adaptation_ranges, "results/self_adaptation", plot_param="k")
+
+
+    # create_daytona_snapshot()
 
     # optimal_parameters = {
     #     "pop_size": 10, #250

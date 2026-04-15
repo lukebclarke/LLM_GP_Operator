@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 #Clients
 from together import Together
-from daytona import Daytona, DaytonaConfig
+from daytona import Daytona, DaytonaConfig, Image, CreateSandboxFromImageParams, CreateSandboxFromSnapshotParams
 
 #Sklearn
 from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin, RegressorMixin, _fit_context
@@ -101,7 +101,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         "custom_mutation_filepath": [str, None]
     }
 
-    def __init__(self, pop_size=200, gens=40, tourn_size=3, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=20, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, custom_crossover_filepath=None, custom_mutation_filepath=None):
+    def __init__(self, pop_size=200, gens=40, tourn_size=3, max_time=8.0*60.0*60.0, cxpb=0.6, mutpb=0.1, k=3, self_adapt_req=5, default_temperature=0.3, temperature_alpha=0.1, maximum_stagnation=10, functions=['+','-','*','/','^2','^3','sqrt','sin','cos','exp','log'], verbose=True, timeout=300, random_state=None, model="Qwen/Qwen3-Coder-Next-FP8", reasoning_model=False, custom_crossover_filepath=None, custom_mutation_filepath=None):
         self.pop_size = pop_size
         self.gens = gens
         self.max_time = max_time
@@ -178,25 +178,24 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             result (dict): The dictionary used to store results. 'sandbox' provides access to the Daytona sandbox.
             timeout (float): The number 
         """
-        daytona_api_key = os.environ.get("DAYTONA_API_KEY") #Uses the TogetherAI API
-        print(f"API KEY: {daytona_api_key}")
+        daytona_api_key = os.environ.get("DAYTONA_API_KEY") #Uses the Daytona API
 
         config = DaytonaConfig(
-            api_key=daytona_api_key,
-            target="eu",
-            api_url="https://app.daytona.io/api"
+            api_key=daytona_api_key.strip(),
+            target="eu"
         )
 
         #Create Daytona sandbox client
         daytonaClient = Daytona(config)
-        sandbox = daytonaClient.create(timeout=self.timeout)
+
+        #Sets up with DEAP installed
+        sandbox = daytonaClient.create(
+            CreateSandboxFromSnapshotParams(snapshot="deap_snapshot")
+        )
+
+        # sandbox = daytonaClient.create(timeout=self.timeout)
         result["sandbox"] = sandbox
         print("Sandbox setup")
-        
-        #Install DEAP
-        sandbox.process.exec("python -m pip install deap==1.4.1", timeout=self.timeout)
-        print("DEAP installed")
-        result["sandbox"] = sandbox
 
         #Provide functions for pset
         with open("gp_primitives.py", "rb") as f:

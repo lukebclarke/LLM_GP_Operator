@@ -258,7 +258,7 @@ class BaseOperator():
 
             code = self.prompt_llm()
 
-            "Generated code"
+            print(code)
 
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
