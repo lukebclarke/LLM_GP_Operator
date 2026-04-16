@@ -23,6 +23,9 @@ import inspect
 import traceback
 import time
 
+import logging
+import google.cloud.logging
+
 class MaximumNumberRetries(Exception):
     """Exception raised when maximum number of attempts to redesign operator has been reached
 
@@ -120,7 +123,8 @@ class BaseOperator():
             bool: True if the individual is compatible with DEAP
         """
         try:
-            h = individual.height
+            func = self.toolbox.compile(expr=individual)
+            height = individual.height
             return True
         except:
             return False
@@ -226,7 +230,7 @@ class BaseOperator():
                 if t.is_alive() or results["exception"] == True:
                     results["exception"] = False
                     raise Exception
-                
+                                
                 return results["code"]
         
             except Exception:
@@ -258,11 +262,20 @@ class BaseOperator():
 
             code = self.prompt_llm()
 
+            print("PROMPT")
+            print(self.llm_prompt)
+            logging.info("PROMPT")
+            logging.info(self.llm_prompt)
+
+            print("Code")
             print(code)
+            print("CODE")
+            logging.info(code)
 
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
                 break
+
 
         if self.num_retries > self.max_num_retries:
             raise MaximumNumberRetries(self.num_parents)

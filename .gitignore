@@ -3,6 +3,7 @@ srbench
 adaptive_gp
 pmlb
 pmlb-master
+.dockerignore
 
 #Results
 tree.pdf 

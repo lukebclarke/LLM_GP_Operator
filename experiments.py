@@ -440,10 +440,16 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
                 ao_est.fit(X_train, y_train)
                 end_time = time.time()
                 break
-            except MaximumNumberRetries:
+            except Exception:
+                print("Execution crashed. Retrying...")
                 continue            
 
-        ao_est.shutdown_sandbox()
+        for i in range(10):
+            try:
+                ao_est.shutdown_sandbox()
+                break
+            except:
+                time.sleep(1)
 
         #Get fitnesses on testing data
         ao_test = ao_est.predict(X_test)
@@ -552,12 +558,11 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     redesign_success_rate = ao_est.stats_["redesign_success_rate"]
     print(f"Redesign success rate: {redesign_success_rate}")
 
-    #TODO: COMPLEXITY
     avg_complexity = sum(complexities) / len(complexities)
     print(f"Average complexity: {avg_complexity}")
 
     #Find overall best operator designs
-    if best_mutation_designs:
+    if best_mutation_designs and save_results:
         best_mutation_design, best_mutation_stats = max(best_mutation_designs, key=lambda x: x[1]["score"])
         best_crossover_design, best_crossover_stats = max(best_crossover_designs, key=lambda x: x[1]["score"])
 
@@ -695,7 +700,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
         #Set up parameters
         current_params = {
             "pop_size": parameters[i]["pop_size"],
-            "gens": 50,
+            "gens": 50, 
             "max_time": 8.0 * 60.0 * 60.0,
             "cxpb": parameters[i]["cxpb"],
             "mutpb": parameters[i]["mutpb"],
@@ -829,7 +834,7 @@ def tune_gp_model(tuning_ranges, directory_name, plot_param=None):
     """
     #Chosen as they cover different areas of the problem space
     problems = ["192_vineyard", "620_fri_c1_1000_25", "201_pol"]
-
+    
     #Make directory for results
     try:
         os.mkdir(directory_name)
@@ -858,14 +863,12 @@ def model_comparisons(params, names):
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic"]
     all_problems = ground_truth_problems + black_box_problems
 
-    test_problems = ["201_pol", "620_fri_c1_1000_25"]
-
     #Universal statistics (i.e. across all problems) per model
     mutation_similarities =  {name: [] for name in names[:-1]}
     crossover_similarities = {name: [] for name in names[:-1]}
     redesign_success_rates = {name: [] for name in names[:-1]}
 
-    #Iterates through problems TODO: Update to iterate through all problems
+    #Iterates through problems
     for problem in all_problems:
 
         #Make directory for results
@@ -1095,7 +1098,7 @@ if __name__ == "__main__":
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
     self_adaptation_ranges = {
-        "pop_size": [300], #250
+        "pop_size": [300],
         "cxpb": [0.9],
         "mutpb": [0.05],
         "tourn_size": [7],
