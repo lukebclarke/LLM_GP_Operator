@@ -105,8 +105,8 @@ def get_similarity(folder_path):
         filepath1 = folder_path + "/" + pair[1]
 
         #Compares the similarity between files using the Winnowing algorithm
-        fp1 = copydetect.CodeFingerprint(filepath0, 25, 1)
-        fp2 = copydetect.CodeFingerprint(filepath1, 25, 1)
+        fp1 = copydetect.CodeFingerprint(filepath0, 25, 2)
+        fp2 = copydetect.CodeFingerprint(filepath1, 25, 2)
         token_overlap, similarities, slices = copydetect.compare_files(fp1, fp2)
 
         all_similarities.append(similarities[0])

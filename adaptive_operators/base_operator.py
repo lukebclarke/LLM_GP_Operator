@@ -262,20 +262,9 @@ class BaseOperator():
 
             code = self.prompt_llm()
 
-            print("PROMPT")
-            print(self.llm_prompt)
-            logging.info("PROMPT")
-            logging.info(self.llm_prompt)
-
-            print("Code")
-            print(code)
-            print("CODE")
-            logging.info(code)
-
             #Must contain the operator function
             if ("def crossover_individuals(" in code) or ("def mutate_individual(" in code):
                 break
-
 
         if self.num_retries > self.max_num_retries:
             raise MaximumNumberRetries(self.num_parents)

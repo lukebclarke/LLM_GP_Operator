@@ -188,6 +188,17 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         #Create Daytona sandbox client
         daytonaClient = Daytona(config)
 
+        #Delete all old sandboxes
+        try:
+            #List all sandboxes
+            result = Daytona.list()
+
+            # Iterate through results
+            for sandbox in result.items:
+                sandbox.delete()
+        except:
+            pass
+
         #Sets up with DEAP installed
         sandbox = daytonaClient.create(
             CreateSandboxFromSnapshotParams(snapshot="deap_snapshot")
@@ -282,7 +293,7 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             "sin": (math.sin, 1),
             "cos": (math.cos, 1),
             "exp": (gp_primitives.protectedExp, 1),
-            "log": (gp_primitives.protectedLog, 1)
+            "ln": (gp_primitives.protectedLog, 1)
         }
 
         #Creates a DEAP Primitive Set containing each function
@@ -291,7 +302,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             pset.addPrimitive(func_details[0], func_details[1])
 
         #Adds ephemeral constants
-        pset.addEphemeralConstant("rand101", partial(random.randint, -1, 1)) #Program can create random constants between 0 and 1
+        pset.addEphemeralConstant("rand101", partial(random.choice, [0, 1])) #Program can create random constant of 0 or 1
+        pset.addTerminal(math.pi, "pi")
 
         return pset
     
@@ -308,8 +320,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_mutation_filepath)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_crossover_filepath)
+        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size*self.mutpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_mutation_filepath)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size*self.cxpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_crossover_filepath)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)

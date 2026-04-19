@@ -32,7 +32,7 @@ from adaptive_operators.custom_crossover import CustomCrossover
 from util import get_similarity
 
 class AdaptiveGP():
-    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, maximum_stagnation=15, timeout=20):
+    def __init__(self, n, pset, toolbox, client, sandbox, custom_mutate, custom_crossover, X, Y, k=2, self_adapt_req=4, maximum_stagnation=15, timeout=300):
         self.n = n
         self.pset = pset
         self.toolbox = toolbox
@@ -210,6 +210,7 @@ class AdaptiveGP():
         mut_filepath = f"temp/mutation_designs/design{len(self.mutation_designs)}.py"
         cross_filepath = f"temp/crossover_designs/design{len(self.crossover_designs)}.py"
 
+        print("Saving files")
         with open(mut_filepath, "w") as f:
             f.write(current_mutator_design)
         
@@ -320,13 +321,14 @@ class AdaptiveGP():
             self.custom_crossover.update_llm_prompt(history, crossover_design, self.hof[0])
             self.custom_mutate.update_llm_prompt(history, mutation_design, self.hof[0])
 
+            self.redesign_generations.append(gen_num)
+            self.gens_since_redesign = 0
+            self.temperature_adapted = False
+
             #Redesigns both operators
             self.custom_crossover.redesign_operator()
             self.custom_mutate.redesign_operator()
 
-            self.redesign_generations.append(gen_num)
-            self.gens_since_redesign = 0
-            self.temperature_adapted = False
         else:
             raise Exception("Error tracking fitnesses")
     
@@ -394,6 +396,8 @@ class AdaptiveGP():
             logbook.record(gen=gen, nevals=len(invalid_ind), **record)
             if verbose:
                 print(logbook.stream)
+                logging.info(str(logbook.stream))
+                logging.info(str(record['fitness']['min']))
 
             #Tracks total number of evaluations
             self.n_evals += len(invalid_ind)
@@ -436,6 +440,9 @@ class AdaptiveGP():
                 self.custom_crossover.self_adapt_temperature()
                 self.temperature_adapted = True
 
+        #Adds any remaining operators to design
+        if len(self.redesign_generations) > 0 and (self.custom_mutate.total_operator_evals > 0) and (self.custom_crossover.total_operator_evals > 0):
+            self.update_operator_history(gen, logbook)
         ao_stats = self.get_stats()
         
         return self.pop, logbook, self.hof, ao_stats

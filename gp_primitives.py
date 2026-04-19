@@ -49,6 +49,9 @@ def protectedLog(number):
 
 def protectedExp(number):
     try:
+        #Clamps the number to a maximum of 20
+        number = max(-20, min(number, 20))
+        
         result = math.exp(number)
         if math.isinf(result):
             raise OverflowError

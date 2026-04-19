@@ -4,7 +4,7 @@ from util import get_similarity
 import logging
 import google.cloud.logging
 
-from pmlb import fetch_data
+from pmlb import fetch_data, dataset_names
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -370,8 +370,8 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         dict: Contains all collated results from the runs
     """
     #Gets training and testing data
-    print(problem_name)
-    logging.info(problem_name)
+    print("Problem: ", problem_name)
+
     X, Y = fetch_data(problem_name, return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
@@ -440,8 +440,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
                 ao_est.fit(X_train, y_train)
                 end_time = time.time()
                 break
-            except Exception:
+            except Exception as e:
                 print("Execution crashed. Retrying...")
+                print(e)
                 continue            
 
         for i in range(10):
@@ -469,8 +470,11 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         num_crossover_redesigns.append(ao_est.stats_["num_crossover_redesigns"])
 
         #Finds the similarity between operator designs (for mutation and crossover)
-        mutation_similarities.append(ao_est.stats_["mutation_similarity"])
-        crossover_similarities.append(ao_est.stats_["crossover_similarity"])
+        if ao_est.stats_["mutation_similarity"] is not None:
+            mutation_similarities.append(ao_est.stats_["mutation_similarity"])
+
+        if ao_est.stats_["crossover_similarity"] is not None:
+            crossover_similarities.append(ao_est.stats_["crossover_similarity"])
 
         redesign_gens = ao_est.stats_["redesign_generations"]
         fitness_improvement_per_gen_ao = ao_est.stats_["fitness_improvements"]
@@ -513,23 +517,21 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     logging.info(f"Number of crossover redesigns: {avg_redesigns_cx}")
 
     #Mutation similarity score
+    avg_mutation_similarity = None
     if mutation_similarities:
         #Remove runs with empty similarity scores
         cleaned_similarities = [s for s in mutation_similarities if s is not None]
 
         if cleaned_similarities:
-            avg_mutation_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
-        else:
-            avg_mutation_similarity = None
+            avg_mutation_similarity = sum(cleaned_similarities) / len(cleaned_similarities)            
 
+    avg_crossover_similarity = None
     if crossover_similarities:
         #Remove runs with empty similarity scores
         cleaned_similarities = [s for s in crossover_similarities if s is not None]
 
         if cleaned_similarities:
             avg_crossover_similarity = sum(cleaned_similarities) / len(cleaned_similarities)
-        else:
-            avg_crossover_similarity = None
 
     print(f"Mutation similarity: {avg_mutation_similarity}")
     logging.info(f"Mutation similarity: {avg_mutation_similarity}")
@@ -706,7 +708,7 @@ def hyperparameter_tuning(ranges, tuning_problems, filepath, plot_param=None):
             "mutpb": parameters[i]["mutpb"],
             "tourn_size": parameters[i]["tourn_size"],
             "k": parameters[i]["k"],
-            "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
+            "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "ln"],
             "verbose": True,
             "self_adapt_req": parameters[i]["self_adapt_req"],
             "default_temperature": parameters[i]["default_temperature"],
@@ -859,8 +861,8 @@ def model_comparisons(params, names):
         pass
 
     #Choose 8 representative problems
-    ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_10"]
-    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic"]
+    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
     all_problems = ground_truth_problems + black_box_problems
 
     #Universal statistics (i.e. across all problems) per model
@@ -877,6 +879,7 @@ def model_comparisons(params, names):
             os.mkdir(directory_name)
         except FileExistsError:
             pass
+        logging.info("Made directory")
 
         #Statistics 
         training_fitnesses = []
@@ -893,7 +896,9 @@ def model_comparisons(params, names):
             current_parameters = params[i]
             model_name = names[i]
 
-            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=10, save_results=True)
+
+            #TODO: num runs
+            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=1, save_results=True)
             training_fitnesses.append(stats["min_training_fitness"])
             testing_fitnesses.append(stats["all_testing_fitness"])
             avg_sizes.append(stats["avg_training_size"])
@@ -915,6 +920,7 @@ def model_comparisons(params, names):
 
                 if stats["redesign_success_rate"] is not None:
                     redesign_success_rates[model_name].append((stats["redesign_success_rate"] * 100))
+
 
         #Plots
         plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
@@ -979,8 +985,11 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         standard_model_params (dict): The parameters of the model to use without an LLM component
         model_name (str): The name of the optimal model to use
     """
-    ground_truth_problems = ["feynman_I_9_18", "feynman_I_6_2a", "feynman_test_10", "feynman_test_5", "feynman_I_18_4", "feynman_II_6_15b", "feynman_III_17_37", "strogatz_barmag2", "strogatz_lv1", "strogatz_predprey1"]
-    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "1089_USCrime", "4544_GeographicalOriginalofMusic", "529_pollen", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
+    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
+
+    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1", "feynman_test_5", "feynman_I_18_4", "feynman_II_6_15b", "strogatz_barmag2", "strogatz_predprey1"]
+    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2", "4544_GeographicalOriginalofMusic", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
 
     ground_truth_wins = 0
     ground_truth_losses = 0
@@ -1090,54 +1099,49 @@ if __name__ == "__main__":
     #Create results folder
     try:
         os.mkdir("results")
+        logging.info("Created results")
     except FileExistsError:
+        logging.info("Results folder already exists")
         pass
 
     #Set up creator object
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
 
-    self_adaptation_ranges = {
-        "pop_size": [300],
-        "cxpb": [0.9],
-        "mutpb": [0.05],
-        "tourn_size": [7],
-        "k": [3, 4, 5, 6, 7],
-        "self_adapt_req": [None], #Can be set to None (5 works well)
-        "default_temperature": [0.1],
-        "temperature_alpha": [0.1],
-        "model": ["openai/gpt-oss-120b"],
-        "reasoning_model": [True],
+    models = ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "deepseek-ai/DeepSeek-V3.1", "Qwen/Qwen3-Coder-Next-FP8", "openai/gpt-oss-120b", "moonshotai/Kimi-K2.5", None]
+    model_names = ["Llama 3.3 70b", "DeepSeek V3.1", "Qwen3 Coder", "GPT OSS 120b", "Kimi K2.5", "No LLM"]
+    reasoning = [False, True, False, True, True, False]
+
+    optimal_parameters = {
+        "pop_size": 10, 
+        "gens": 20,
+        "max_time": 8.0 * 60.0 * 60.0,
+        "cxpb": 0.9,
+        "mutpb": 0.05,
+        "tourn_size": 7,
+        "k": 5, 
+        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "ln"],
+        "verbose": True,
+        "self_adapt_req": 5,
+        "default_temperature": 0.3,
+        "temperature_alpha": 0.1,
+        "maximum_stagnation": 20,
+        "model": None,
+        "reasoning_model": False
     }
 
-    tune_gp_model(self_adaptation_ranges, "results/self_adaptation", plot_param="k")
+    #TODO: REMOVE
+    models = ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "deepseek-ai/DeepSeek-V3.1", None]
+    model_names = ["Llama 3.3 70b", "DeepSeek V3.1", "No LLM"]
+    reasoning = [False, True, False]
 
 
-    # create_daytona_snapshot()
+    #Gets parameters for each model
+    parameters = []
+    for i in range(len(models)):
+        current_parameters = optimal_parameters.copy()
+        current_parameters["model"] = models[i]
+        current_parameters["reasoning_model"] = reasoning[i]
+        parameters.append(current_parameters)
 
-    # optimal_parameters = {
-    #     "pop_size": 10, #250
-    #     "gens": 15,
-    #     "max_time": 8.0 * 60.0 * 60.0,
-    #     "cxpb": 0.8,
-    #     "mutpb": 0.1,
-    #     "k": 3, 
-    #     "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "log"],
-    #     "verbose": True,
-    #     "self_adapt_req": None, #Can be set to None (5 works well)
-    #     "default_temperature": 0.3,
-    #     "temperature_alpha": 0.1,
-    #     "maximum_stagnation": 10,
-    #     "model": None,
-    #     "reasoning_model": False
-    # }
-    # model_names = ["Standard1", "Standard2", "Standard3"]
-
-    # #Gets parameters for each model
-    # parameters = []
-    # for i in range(3):
-    #     current_parameters = optimal_parameters.copy()
-    #     parameters.append(current_parameters)
-
-    # model_comparisons(parameters, model_names)
-
+    model_comparisons(parameters, model_names)
