@@ -120,6 +120,33 @@ def plot_minimum_fitnesses(alg_names, alg_min_fitnesses, filepath=None):
         plt.savefig(filepath, dpi=300)
         plt.close()
 
+def plot_minimum_fitnesses_single_line(alg_names, alg_min_fitnesses, filepath=None):
+    """Plots a graph of minimum fitness per generation
+
+    Args:
+        alg_names ([str]): The names of the models
+        alg_min_fitnesses ([float]): The list of fitnesses
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
+    #Pad the minimum fitnesses (so each run is the same length)
+    runs = np.array(pad_runs_multiple_algorithms(alg_min_fitnesses))
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+    for i in range(len(runs)):
+
+        median, q1, q3 = analyse_across_runs(runs[i])
+        x = np.arange(len(median))
+        ax.plot(x, median, label=alg_names[i])
+        ax.set_xlabel("Generation")
+        ax.set_ylabel("Minimum Fitness")
+        ax.set_title("Minimum Fitness per Generation")
+        ax.legend()
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+        plt.close()
+
 def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
     """Plots a graph of average size per generation
 
@@ -140,6 +167,34 @@ def plot_avg_size(alg_names, alg_avg_sizes, filepath=None):
         x = np.arange(len(median))
         ax.plot(x, median, label=alg_names[i])
         ax.fill_between(x, q1, q3, alpha=0.2)
+        ax.set_xlabel("Generation")
+        ax.set_ylabel("Average Size")
+        ax.set_title("Average Size per Generation")
+        ax.legend()
+
+    if filepath:
+        plt.savefig(filepath, dpi=300)
+        plt.close()
+
+def plot_avg_size_single_line(alg_names, alg_avg_sizes, filepath=None):
+    """Plots a graph of average size per generation
+
+    Args:
+        alg_names ([str]): The names of the models
+        alg_avg_sizes ([float]): The list of average sizes
+        filepath (str, optional): The location to save the plot. Defaults to None.
+    """
+    #Pad the minimum fitnesses (so each run is the same length)
+    runs = np.array(pad_runs_multiple_algorithms(alg_avg_sizes))
+
+    fig = plt.figure(figsize=[7,5])
+    ax = plt.subplot(111)
+
+    #Analyses each run
+    for i in range(len(runs)):
+        median, q1, q3 = analyse_across_runs(runs[i])
+        x = np.arange(len(median))
+        ax.plot(x, median, label=alg_names[i])
         ax.set_xlabel("Generation")
         ax.set_ylabel("Average Size")
         ax.set_title("Average Size per Generation")
@@ -375,6 +430,14 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     X, Y = fetch_data(problem_name, return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
+    #Limit number of training samples to ease computational burden
+    if len(X_train) > 10000:
+        idxs = np.random.choice(len(X_train), 10000, replace=False)
+        X_train = X_train[idxs]
+        y_train = y_train[idxs]
+
+    print(f"LENGTH X: {len(X)}")
+
     #Make for model within results
     if save_results:
         directory_name = f"results/{problem_name}"
@@ -406,33 +469,33 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
 
     for i in range(num_runs):
         
-        #Deletes temp folder if already exists
-        for i in range(10):
-            try:
-                if os.path.exists("temp/mutation_designs"):
-                    shutil.rmtree("temp/mutation_designs")
-
-                if os.path.exists("temp/crossover_designs"):
-                    shutil.rmtree("temp/crossover_designs")
-
-                if os.path.exists("temp"):
-                    shutil.rmtree("temp")
-            
-            #Error may be raised if folders are open
-            except OSError:
-                time.sleep(1)
-
-        #Create fresh temp folder (and sub-folders)
-        os.makedirs("temp")
-        os.makedirs("temp/mutation_designs")
-        os.makedirs("temp/crossover_designs")
-
         #Defines random seed
         params["random_state"] = 42 + i
         
         #Retries if crashes
         for i in range(10):
             start_time = time.time()
+
+            #Deletes temp folder if already exists
+            for i in range(10):
+                try:
+                    if os.path.exists("temp/mutation_designs"):
+                        shutil.rmtree("temp/mutation_designs")
+
+                    if os.path.exists("temp/crossover_designs"):
+                        shutil.rmtree("temp/crossover_designs")
+
+                    if os.path.exists("temp"):
+                        shutil.rmtree("temp")
+                
+                #Error may be raised if folders are open
+                except OSError:
+                    time.sleep(1)
+
+            #Create fresh temp folder (and sub-folders)
+            os.makedirs("temp")
+            os.makedirs("temp/mutation_designs")
+            os.makedirs("temp/crossover_designs")
 
             #Run adaptive evolutionary algorithm without re-initialising sanbdox
             try:
@@ -896,9 +959,7 @@ def model_comparisons(params, names):
             current_parameters = params[i]
             model_name = names[i]
 
-
-            #TODO: num runs
-            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=1, save_results=True)
+            stats = run_problem_instance(problem, current_parameters, model_name, num_runs=10, save_results=True)
             training_fitnesses.append(stats["min_training_fitness"])
             testing_fitnesses.append(stats["all_testing_fitness"])
             avg_sizes.append(stats["avg_training_size"])
@@ -924,9 +985,11 @@ def model_comparisons(params, names):
 
         #Plots
         plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
+        plot_minimum_fitnesses_single_line(names, training_fitnesses, f"{directory_name}/minimum_fitness_clean.pdf")
         plot_boxplot(names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
         plot_boxplot(names, complexities, "Complexity per Model", "No. Nodes in Best Solution", f"{directory_name}/complexity_boxplot.pdf")
         plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
+        plot_avg_size_single_line(names, avg_sizes, f"{directory_name}/avg_size_clean.pdf")
         bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, solve_rates, f"{directory_name}/solve_rate.pdf")
         bar_chart("Average Runtime", "Runtime (Seconds)", names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
         scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", names, execution_times, testing_fitnesses)
@@ -1113,8 +1176,8 @@ if __name__ == "__main__":
     reasoning = [False, True, False, True, True, False]
 
     optimal_parameters = {
-        "pop_size": 10, 
-        "gens": 20,
+        "pop_size": 300, 
+        "gens": 100,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.9,
         "mutpb": 0.05,
@@ -1129,12 +1192,6 @@ if __name__ == "__main__":
         "model": None,
         "reasoning_model": False
     }
-
-    #TODO: REMOVE
-    models = ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "deepseek-ai/DeepSeek-V3.1", None]
-    model_names = ["Llama 3.3 70b", "DeepSeek V3.1", "No LLM"]
-    reasoning = [False, True, False]
-
 
     #Gets parameters for each model
     parameters = []

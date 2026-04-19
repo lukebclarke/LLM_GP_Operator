@@ -207,8 +207,15 @@ class AdaptiveGP():
         self.crossover_designs.append((current_crossover_design, crossover_stats))
 
         #Adds to folder (so we can compute similarity at end)
-        mut_filepath = f"temp/mutation_designs/design{len(self.mutation_designs)}.py"
-        cross_filepath = f"temp/crossover_designs/design{len(self.crossover_designs)}.py"
+        try:
+            mut_filepath = f"temp/mutation_designs/design{len(self.mutation_designs)}.py"
+            cross_filepath = f"temp/crossover_designs/design{len(self.crossover_designs)}.py"
+        except:
+            os.makedirs("temp", exist_ok=True)
+            os.makedirs("temp/mutation_designs", exist_ok=True)
+            os.makedirs("temp/crossover_designs", exist_ok=True)
+            mut_filepath = f"temp/mutation_designs/design{len(self.mutation_designs)}.py"
+            cross_filepath = f"temp/crossover_designs/design{len(self.crossover_designs)}.py"
 
         print("Saving files")
         with open(mut_filepath, "w") as f:
