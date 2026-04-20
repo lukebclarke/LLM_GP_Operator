@@ -238,11 +238,12 @@ def plot_boxplot(names, values, title, y_label, filepath=None):
         y_label (str): Label for the y-axis
         filepath (str, optional): The location to save the plot. Defaults to None.
     """
-    fig = plt.figure(figsize=[7,5])
+    fig = plt.figure(figsize=[10,5])
+    
     ax = plt.subplot(111)
 
     #Generates box plot
-    bplot = ax.boxplot(values, tick_labels=names, patch_artist=True, showfliers=False)
+    bplot = ax.boxplot(values, vert=False, patch_artist=True, showfliers=False)
 
     #Gets default matplotlib colours
     prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -258,7 +259,10 @@ def plot_boxplot(names, values, title, y_label, filepath=None):
         median.set_color(color)
 
     ax.set_title(title)
-    ax.set_ylabel(y_label)
+    ax.set_yticklabels(names)
+    ax.set_xlabel(y_label)
+
+    plt.tight_layout()
 
     if filepath:
         plt.savefig(filepath, dpi=300)
@@ -1005,11 +1009,12 @@ def model_comparisons(params, names):
         plot_boxplot(names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
         plot_boxplot(names, r2s, r"$R^2$ Score per Model", r"$R^2$", f"{directory_name}/r2_boxplot.pdf")
         plot_boxplot(names, complexities, "Complexity per Model", "No. Nodes in Best Solution", f"{directory_name}/complexity_boxplot.pdf")
+        plot_boxplot(names, execution_times, "Runtime per Model", "Runtime (Seconds)", f"{directory_name}/runtime_boxplot.pdf")
         plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
         plot_avg_size_single_line(names, avg_sizes, f"{directory_name}/avg_size_clean.pdf")
         bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, solve_rates, f"{directory_name}/solve_rate.pdf")
         bar_chart("Average Runtime", "Runtime (Seconds)", names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
-        scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", names, execution_times, testing_fitnesses)
+        scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", names, execution_times, testing_fitnesses, filepath=f"{directory_name}/fitness_vs_runtime.pdf")
 
     #Find accuracy across all models
     plot_boxplot(names, r2s, r"$R^2$ Score per Model", r"$R^2 $",  f"{overall_directory_name}/r2_boxplot_all.pdf")

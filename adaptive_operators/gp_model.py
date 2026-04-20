@@ -191,10 +191,10 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         #Delete all old sandboxes
         try:
             #List all sandboxes
-            result = Daytona.list()
+            sandboxes = daytonaClient.list()
 
             # Iterate through results
-            for sandbox in result.items:
+            for sandbox in sandboxes.items:
                 sandbox.delete()
         except:
             pass
@@ -204,7 +204,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
             CreateSandboxFromSnapshotParams(snapshot="deap_snapshot")
         )
 
-        # sandbox = daytonaClient.create(timeout=self.timeout)
         result["sandbox"] = sandbox
         print("Sandbox setup")
 
