@@ -21,6 +21,7 @@ import statistics
 from deap import algorithms, base, creator, tools, gp
 
 from sklearn.model_selection import train_test_split
+import sklearn.metrics
 
 import daytona
 from dotenv import load_dotenv
@@ -465,6 +466,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     solved = []
     redesign_gens = []
     complexities = []
+    all_r2 = []
     final_stats = {}
 
     for i in range(num_runs):
@@ -520,6 +522,8 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
 
         #Evaluate the mean squared error between the expression and the real function
         all_fit_testing.append(np.mean((ao_test - y_test) ** 2))
+
+        all_r2.append(sklearn.metrics.r2_score(y_test, ao_test))
 
         #Get size of final solution
         complexities.append(ao_est.complexity())
@@ -607,6 +611,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     print(f"Average Testing Fitness: {avg_testing_fitness}")
     print(f"Minimum Testing Fitness: {min_testing_fitness}")
 
+    average_r2 = np.mean(all_r2)
+    print(f"Average R2: {average_r2}")
+
     #Find average execution time
     average_exec_time = sum(execution_times) / len(execution_times)
     print(f"Average execution time: {average_exec_time}")
@@ -660,6 +667,9 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         log.write(f"Average Testing Fitness (Standard Operator): {avg_testing_fitness}\n")
         log.write(f"Minimum Testing Fitness (Standard Operator): {min_testing_fitness}\n")
 
+        log.write(f"Average R2: {average_r2}\n")
+
+
         log.write("\n")
         log.write(f"Average complexity: {avg_complexity}")
 
@@ -696,6 +706,8 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     final_stats["redesign_gens"] = redesign_gens
     final_stats["avg_complexity"] = avg_complexity
     final_stats["complexities"] = complexities
+    final_stats["avg_r2"] = average_r2
+    final_stats["all_r2"] = all_r2
 
     return final_stats
 
@@ -932,6 +944,7 @@ def model_comparisons(params, names):
     mutation_similarities =  {name: [] for name in names[:-1]}
     crossover_similarities = {name: [] for name in names[:-1]}
     redesign_success_rates = {name: [] for name in names[:-1]}
+    all_r2s = [[] for _ in range(len(names))]
 
     #Iterates through problems
     for problem in all_problems:
@@ -953,6 +966,7 @@ def model_comparisons(params, names):
         execution_times = []
         average_execution_times = []
         complexities = []
+        r2s = []
 
         #Runs the problem with each model
         for i in range(len(params)):
@@ -968,6 +982,8 @@ def model_comparisons(params, names):
             execution_times.append(stats["all_execution_times"])
             average_execution_times.append(stats["avg_execution_time"])
             complexities.append(stats["complexities"])
+            r2s.append(stats["all_r2"])
+            all_r2s[i] = stats["all_r2"]
 
             #Do not calculate similarity for non-LLM based GP
             if i != (len(names) - 1):
@@ -987,12 +1003,16 @@ def model_comparisons(params, names):
         plot_minimum_fitnesses(names, training_fitnesses, f"{directory_name}/minimum_fitness.pdf")
         plot_minimum_fitnesses_single_line(names, training_fitnesses, f"{directory_name}/minimum_fitness_clean.pdf")
         plot_boxplot(names, testing_fitnesses, "Testing Fitness per Model", "Minimum Fitness", f"{directory_name}/minimum_fitness_boxplot.pdf")
+        plot_boxplot(names, r2s, r"$R^2$ Score per Model", r"$R^2$", f"{directory_name}/r2_boxplot.pdf")
         plot_boxplot(names, complexities, "Complexity per Model", "No. Nodes in Best Solution", f"{directory_name}/complexity_boxplot.pdf")
         plot_avg_size(names, avg_sizes, f"{directory_name}/avg_size.pdf")
         plot_avg_size_single_line(names, avg_sizes, f"{directory_name}/avg_size_clean.pdf")
         bar_chart("Percent of Problem Instances Solved", "Problem Instances Solved (%)", names, solve_rates, f"{directory_name}/solve_rate.pdf")
         bar_chart("Average Runtime", "Runtime (Seconds)", names, average_execution_times, filepath=f"{directory_name}/runtime_bar.pdf")
         scatter_plot("Minimum Fitness vs Runtime", "Runtime (Seconds)", "Minimum Fitness", names, execution_times, testing_fitnesses)
+
+    #Find accuracy across all models
+    plot_boxplot(names, r2s, r"$R^2$ Score per Model", r"$R^2 $",  f"{overall_directory_name}/r2_boxplot_all.pdf")
 
     #Finds averages across all problems
     mutation_similarities_per_model = [sum(similarities) / len(similarities) for similarities in mutation_similarities.values() if len(similarities) > 0]
