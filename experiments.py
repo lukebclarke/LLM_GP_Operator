@@ -941,6 +941,8 @@ def model_comparisons(params, names):
 
     #Choose 8 representative problems
     ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    #TODO: Remove line
+    ground_truth_problems = ["strogatz_shearflow2", "strogatz_glider1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
     all_problems = ground_truth_problems + black_box_problems
 

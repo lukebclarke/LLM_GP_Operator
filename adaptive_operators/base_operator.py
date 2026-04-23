@@ -400,7 +400,27 @@ class BaseOperator():
 
         #Attempt to apply operator locally
         try:
-            offspring = self.apply_operator(individuals)
+            results = {"offspring": [],
+                    "exception": False}
+            
+            def execute_local_code():
+                try:
+                    results["offspring"] = self.apply_operator(individuals)
+                except Exception:
+                    results["exception"] = True
+
+            #Uses threads to implement timeout
+            t = threading.Thread(target=execute_local_code, daemon=True)
+            t.start()
+            t.join(self.timeout)
+
+            if t.is_alive():
+                raise TimeoutError("Operation timed out")
+            
+            if results["exception"] == True:
+                raise Exception("Invalid offspring generated")
+
+            offspring = results["offspring"]
 
             #Ensure correct types
             for i in range(len(offspring)):
@@ -425,3 +445,7 @@ class BaseOperator():
 
             #If operator doesn't work, return the original individuals 
             return individuals
+
+        except TimeoutError as e:
+            print("Locally applied operator timeout... redesigning")
+            self.redesign_operator()

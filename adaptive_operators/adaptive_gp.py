@@ -381,9 +381,41 @@ class AdaptiveGP():
             # Select the next generation individuals
             offspring = self.toolbox.select(self.pop, len(self.pop))
 
-            # Vary the pool of individuals
-            #Attempt to create offspring - redesigning genetic operators if needed
-            offspring = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+            results = {"offspring": None,
+                       "exception": False}
+
+            def apply_operators():
+                try:
+                    # Vary the pool of individuals
+                    #Attempt to create offspring - redesigning genetic operators if needed
+                    results["offspring"] = algorithms.varAnd(offspring, self.toolbox, cxpb, mutpb)
+                    results["exception"] = False
+                except Exception:
+                    results["exception"] = True
+            
+            #Tries to execute operators locally, retrying after failure
+            raise_exception = False
+            for i in range(10):
+                try:
+                    #Uses threads to implement timeout
+                    t = threading.Thread(target=apply_operators, daemon=True)
+                    t.start()
+                    t.join(900) #End if it takes 15 minutes to apply operators
+
+                    if t.is_alive():
+                        raise TimeoutError("Operation timed out")
+                    
+                    if results["exception"] == True:
+                        raise Exception("Invalid offspring generated")
+                    else:
+                        raise_exception = False
+                        offspring = results["offspring"]   
+                        break
+                
+                except Exception:
+                    #Redesigns both operators if execution fails
+                    self.custom_crossover.redesign_operator()
+                    self.custom_mutate.redesign_operator()
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
