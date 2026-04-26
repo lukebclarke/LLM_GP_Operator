@@ -373,7 +373,10 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
     Returns:
         float, float, bool: The p-value, the test statistic, and a boolean representing whether there is a significant difference between the algorithms
     """
-    stat, p_value = stats.wilcoxon(alg1_fitnesses, alg2_fitnesses)
+    try:
+        stat, p_value = stats.wilcoxon(alg1_fitnesses, alg2_fitnesses)
+    except ValueError:
+        return None, None, None
 
     print("Wilcoxon Signed Rank Test Statistic:", stat)
     logging.info(f"Wilcoxon Signed Rank Test Statistic: {stat}")
@@ -410,11 +413,11 @@ def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_t
     plt.bar(x, losses, bottom=wins+ties, color='tab:red', alpha=0.2)
     plt.ylabel("Number of Problems")
     plt.legend(["Win", "Tie", "Losses"])
-    plt.title("Performance of LLM-Based GP against Standard GP")
+    plt.title("Win-Tie-Loss Comparison of LLM-GP vs Traditional GP Across Problem Types")
     plt.savefig("results/groundtruth_blackbox.pdf", dpi=300)
 
     #Boxpot for Improvements
-    plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "LLM-Based GP Improvement", "Improvement over Standard GP (%)", "results/improvement_problem.pdf")
+    plot_boxplot(x, [ground_truth_improvements, black_box_improvements], "Percentage Improve of LLM-Guided GP over Traditional GP by Problem Type", "Improvement over Traditional GP (%)", "results/improvement_problem.pdf")
 
 def run_problem_instance(problem_name, params, model_name, num_runs=10, save_results=True):
     """Runs a problem instance multiple times, collating the results
@@ -700,6 +703,7 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
     final_stats["avg_testing_fitness"] = avg_testing_fitness
     final_stats["avg_execution_time"] = average_exec_time
     final_stats["all_execution_times"] = execution_times
+    final_stats["n_evals"] = n_evals
     final_stats["avg_n_evals"] = average_n_evals
     final_stats["solved_percent"] = solves_percent
     final_stats["redesign_success_rate"] = redesign_success_rate
@@ -941,8 +945,6 @@ def model_comparisons(params, names):
 
     #Choose 8 representative problems
     ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
-    #TODO: Remove line
-    ground_truth_problems = ["strogatz_shearflow2", "strogatz_glider1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
     all_problems = ground_truth_problems + black_box_problems
 
@@ -1051,14 +1053,21 @@ def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_para
         except FileExistsError:
             pass
 
+        traditional_r2s = []
+        adaptive_r2s = [] 
+
         traditional_stats = run_problem_instance(problem, alg1_params, alg1_name, num_runs=num_runs)
         adaptive_stats = run_problem_instance(problem, alg2_params, alg2_name, num_runs=num_runs)
 
+        traditional_r2s.extend(traditional_stats["all_r2"])
+        adaptive_r2s.extend(adaptive_stats["all_r2"])
+
+        #MSE
         p_value, test_statistic, diff = statistical_testing(traditional_stats["min_testing_fitness"], adaptive_stats["min_testing_fitness"], 0.05)
 
-        log = open(f"{directory_name}/{alg1_name}__{alg2_name}.txt", "w")
+        log = open(f"{directory_name}/mse_statistical_testing.txt", "w")
         log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
-        log.write(f"Wilcoxon Signed Rank Test Statistic:: {test_statistic}\n")
+        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
         log.write(f"p-value: {p_value}\n")
         if diff:
             print("Reject the null hypothesis: There is a significant difference between the two samples.")
@@ -1066,7 +1075,37 @@ def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_para
         else:
             print("Fail to reject the null hypothesis: No significant difference between the two samples.")
             log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-        
+
+        #Number Evaluations
+        p_value, test_statistic, diff = statistical_testing(traditional_stats["n_evals"], adaptive_stats["n_evals"], 0.05)
+
+        log = open(f"{directory_name}/n_evals_statistical_testing.txt", "w")
+        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
+        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
+        log.write(f"p-value: {p_value}\n")
+        if diff:
+            print("Reject the null hypothesis: There is a significant difference between the two samples.")
+            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
+        else:
+            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
+            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
+
+        #Execution Times
+        p_value, test_statistic, diff = statistical_testing(traditional_stats["all_execution_times"], adaptive_stats["all_execution_times"], 0.05)
+
+        log = open(f"{directory_name}/exec_times_statistical_testing.txt", "w")
+        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
+        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
+        log.write(f"p-value: {p_value}\n")
+        if diff:
+            print("Reject the null hypothesis: There is a significant difference between the two samples.")
+            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
+        else:
+            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
+            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
+
+        plot_boxplot([alg1_name, alg2_name], [traditional_r2s, adaptive_r2s], r"$R^2$ Score per Approach", r"$R^2$", f"results/all_r2s.pdf")
+
 def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name):
     """Compares model performance on blackbox versus ground truth problems
 
@@ -1075,9 +1114,8 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         standard_model_params (dict): The parameters of the model to use without an LLM component
         model_name (str): The name of the optimal model to use
     """
-    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
-    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
-
+    # ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    # black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
     ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1", "feynman_test_5", "feynman_I_18_4", "feynman_II_6_15b", "strogatz_barmag2", "strogatz_predprey1"]
     black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2", "4544_GeographicalOriginalofMusic", "537_houses", "542_pollution", "1028_SWD", "1029_LEV", "1030_ERA"]
 
@@ -1088,6 +1126,11 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
     black_box_wins = 0
     black_box_losses = 0
     black_box_ties = 0
+
+    ground_truth_r2s_llm = []
+    ground_truth_r2s_no_llm = []
+    black_box_r2s_llm = []
+    black_box_r2s_no_llm = []
 
     ground_truth_improvements = []
     black_box_improvements = []
@@ -1122,6 +1165,9 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         else:
             ground_truth_losses += 1
 
+        ground_truth_r2s_llm.extend(adaptive_stats["all_r2"])
+        ground_truth_r2s_no_llm.extend(standard_stats["all_r2"])
+
     for problem in black_box_problems:
         #Make directory for results
         directory_name = f"results/{problem}"
@@ -1150,7 +1196,12 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
         else:
             black_box_losses += 1
 
+        black_box_r2s_llm.extend(adaptive_stats["all_r2"])
+        black_box_r2s_no_llm.extend(standard_stats["all_r2"])
+
     compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements)
+    plot_boxplot(["LLM-Guided GP", "Standard GP"], [ground_truth_r2s_llm + black_box_r2s_llm, ground_truth_r2s_no_llm + black_box_r2s_no_llm], r"$R^2$ Score Comparison", r"$R^2$",  f"results/llm_vs_without_r2.pdf")
+    plot_boxplot(["Ground Truth", "Black Box"], [ground_truth_r2s_llm, black_box_r2s_llm], r"$R^2$ Score for Problem Type", r"$R^2$",  f"results/problem_type_r2.pdf")
 
 def create_daytona_snapshot():
     """Only used once - creates a snapshot that installs DEAP within a Daytona account. Snapshot can be accessed with "deap_snapshot"
@@ -1176,7 +1227,7 @@ def create_daytona_snapshot():
 
 if __name__ == "__main__":
     #Setup logging for VM
-    # logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)    
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d - %(message)s"
@@ -1215,17 +1266,33 @@ if __name__ == "__main__":
         "self_adapt_req": 5,
         "default_temperature": 0.3,
         "temperature_alpha": 0.1,
+        "maximum_stagnation": 100,
+        "model": "openai/gpt-oss-120b",
+        "reasoning_model": True
+    }
+
+    standard_params = {
+        "pop_size": 300, 
+        "gens": 100,
+        "max_time": 8.0 * 60.0 * 60.0,
+        "cxpb": 0.9,
+        "mutpb": 0.05,
+        "tourn_size": 7,
+        "k": 5, 
+        "functions": ["+", "-", "*", "/", "sqrt", "sin", "cos", "ln"],
+        "verbose": True,
+        "self_adapt_req": 5,
+        "default_temperature": 0.3,
+        "temperature_alpha": 0.1,
         "maximum_stagnation": 20,
         "model": None,
         "reasoning_model": False
     }
 
-    #Gets parameters for each model
-    parameters = []
-    for i in range(len(models)):
-        current_parameters = optimal_parameters.copy()
-        current_parameters["model"] = models[i]
-        current_parameters["reasoning_model"] = reasoning[i]
-        parameters.append(current_parameters)
+    # blackbox_vs_groundtruth(optimal_parameters, standard_params, "GPT-OSS-120b")
+    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
+    all_problems = ground_truth_problems + black_box_problems
 
-    model_comparisons(parameters, model_names)
+    compare_two_approaches(all_problems, "LLM-Based GP", "Standard GP", optimal_parameters, standard_params, 1)
+

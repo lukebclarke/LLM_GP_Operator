@@ -319,8 +319,8 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         self.toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 
         #Defines custom mutation + crossover interfaces
-        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size*self.mutpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_mutation_filepath)
-        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=15, max_local_skips=(0.1*self.pop_size*self.cxpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_crossover_filepath)
+        self.custom_mutate = CustomMutation(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=20, max_local_skips=(0.1*self.pop_size*self.mutpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_mutation_filepath)
+        self.custom_crossover = CustomCrossover(self.client, self.sandbox, self.pset, self.toolbox, model=self.model, reasoning_model=self.reasoning_model, max_num_retries=20, max_local_skips=(0.1*self.pop_size*self.cxpb), default_temperature=self.default_temperature, temperature_alpha=self.temperature_alpha, custom_operator_filepath=self.custom_crossover_filepath)
 
         #Registers custom mutation + crossover methods
         self.toolbox.register("mate", self.custom_crossover.crossover)
