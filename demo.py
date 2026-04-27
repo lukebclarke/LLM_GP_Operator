@@ -64,29 +64,50 @@ def setup_demo():
     plot_individual(ind1, "temp/parent1.png")
     plot_individual(ind2, "temp/parent2.png")
 
-    return ao_est
+    return ao_est, ind1, ind2
 
-def get_operator_designs(ao_est):
+def get_mutation_design(ao_est):
     #TODO: Get saved designs if it fails after 5 seconds
     ao_est.custom_mutate.redesign_operator()
-    ao_est.custom_crossover.redesign_operator()
-
     mutation_design = ao_est.custom_mutate.operator_design
+
+    return mutation_design
+
+def get_crossover_design(ao_est):
+    ao_est.custom_crossover.redesign_operator()
     crossover_design = ao_est.custom_crossover.operator_design
 
-    print(mutation_design)
-    print(crossover_design)
+    return crossover_design
+
+def generate_operators(ao_est):
+    mutation_design = get_mutation_design(ao_est)
+    crossover_design = get_crossover_design(ao_est)
 
     return mutation_design, crossover_design
 
+def apply_mutation(ao_est, individual):
+    offspring = ao_est.custom_mutate.llm_custom_operator_daytona([individual])[0]
+    plot_individual(offspring, "temp/mutation_offspring.png")
+
+    return "temp/mutation_offspring.png"
+
+def apply_crossover(ao_est, individual1, individual2):
+    offspring = ao_est.custom_mutate.llm_custom_operator_daytona([individual1, individual2])
+    plot_individual(offspring, "temp/cx_offspring1.png")
+    plot_individual(offspring, "temp/cx_offspring2.png")
+
+    return "temp/cx_offspring2.png", "temp/cx_offspring2.png"
+
 def demo():
+    ao_est, ind1, ind2 = setup_demo()
+    parent1_path = "temp/parent1.png"
+    parent2_path = "temp/parent2.png"
+
     with gr.Blocks() as demo:
-        parent1_path = "temp/parent1.png"
-        parent2_path = "temp/parent2.png"
 
         with gr.Walkthrough(selected=1) as walkthrough:
             #Step 1 - Show parents
-            with gr.Step("Step 1", id=1):
+            with gr.Step("Current Population", id=1):
 
                 with gr.Row():
                     with gr.Column(scale=1):
@@ -94,19 +115,93 @@ def demo():
                     with gr.Column(scale=1):
                         p2 = gr.Image(parent2_path, height=400)
                 
-                btn = gr.Button("Generate Genetic Operators")
-                btn.click(lambda: gr.Walkthrough(selected=2), outputs=walkthrough)
+                btn1 = gr.Button("Generate Genetic Operators")
 
             #Step 2 - Generate genetic operators
-            with gr.Step("Step 2", id=2):
-                pass
-            #Step 3 - Applying genetic operators remotely
-            with gr.Step("Step 3", id=2):
-                txt = gr.Textbox("Generated Offspring")
+            with gr.Step("Generate Operators", id=2):
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=1):
+                        mutation_code = gr.Code(value=get_mutation_design(ao_est), label="Custom Mutation Design")
+                        mut_button = gr.Button("Apply Mutation Operator")
+                        mut_retry = gr.Button("Regenerate")
+                    with gr.Column(scale=1):
+                        crossover_code = gr.Code(value=get_crossover_design(ao_est), label="Custom Crossover Design")
+                        cx_button = gr.Button("Apply Crossover Operator")
+                        cx_retry = gr.Button("Regenerate")
+
+                #Generates operators and advances to next screen
+                gr.on(
+                    triggers=[btn1.click],
+                    fn=lambda: gr.Walkthrough(selected=2), outputs=walkthrough,
+                ).then(
+                    fn=lambda: generate_operators(ao_est),
+                    inputs=[],
+                    outputs=[mutation_code, crossover_code]
+                )
+
+                mut_retry.click(lambda: get_mutation_design(ao_est), outputs=mutation_code)
+                cx_retry.click(lambda: get_crossover_design(ao_est), outputs=crossover_code)
+
+                #Regenerate operators
+                gr.on(
+                    triggers=[mut_retry.click],
+                    fn=lambda: get_mutation_design(ao_est),
+                    inputs=[],
+                    outputs=[mutation_code],
+                )
+            
+            #Step 3 - Applying mutation operator remotely
+            with gr.Step("Mutation", id=3):
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        mut_parent = gr.Image(parent1_path, height=400, label="Parent", type="filepath")
+                    with gr.Column(scale=1):
+                        mut_offspring = gr.Image(height=400, label="Offspring", type="filepath")
+
+                return1 = gr.Button("View Designs")
+
+                #View mutation results
+                gr.on(
+                    triggers=[mut_button.click],
+                    fn=lambda: gr.Walkthrough(selected=3), 
+                    outputs=walkthrough
+                ).then(
+                    fn=lambda: apply_mutation(ao_est, ind1),
+                    outputs=mut_offspring
+                )
+
+                return1.click(fn=lambda: gr.Walkthrough(selected=2), outputs=walkthrough)
+
+            #Step 4 - Applying crossover operator remotely
+            with gr.Step("Crossover", id=4):
+                with gr.Row(equal_height=True):
+                    with gr.Column(scale=1):
+                        cx_parent1 = gr.Image(parent1_path, height=400, label="Parent 1", type="filepath")
+                    with gr.Column(scale=1):
+                        cx_parent2 = gr.Image(parent2_path, height=400, label="Parent 2", type="filepath")
+
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        cx_offspring_1 = gr.Image(height=400, label="Offspring 1", type="filepath")
+                    with gr.Column(scale=1):
+                        cx_offspring_2 = gr.Image(height=400, label="Offspring 2", type="filepath")
+
+                return2 = gr.Button("View Designs")
+
+                #View crossover results
+                gr.on(
+                    triggers=[mut_button.click],
+                    fn=lambda: gr.Walkthrough(selected=4), 
+                    outputs=walkthrough
+                ).then(
+                    fn=lambda: apply_crossover(ao_est, ind2, ind2),
+                    outputs=[cx_offspring_1, cx_offspring_2]
+                )
+
+                return2.click(fn=lambda: gr.Walkthrough(selected=2), outputs=walkthrough)
+
 
         demo.launch()
 
-ao_est = setup_demo()
-get_operator_designs(ao_est)
-# demo()
-
+if __name__ == "__main__":
+    demo()
