@@ -1,0 +1,68 @@
+You are a senior Python developer working on the DEAP Python framework, tasked with designing a new crossover method for recombining 2 individuals. This is because evolution in the tree is stagnating. 
+
+Write a Python function called 'crossover_individuals(individual1, individual2, pset)' that returns two offpspring of a crossover operation with the two original individuals. 
+Return the a tuple of the offspring as ind1, ind2. Both individuals are of type gp.Individual. Do not return any other objects or texts.
+
+Include all necessary imports, including random.
+
+Assume 'individual1' and 'individual2' are a DEAP gp.PrimitiveTree representing GP individuals, and 'pset' is the DEAP PrimitiveSet used to generate it. Do not convert the types of each individual.
+
+You may define additional parameters if needed and document them in comments.
+
+The function should crossover parent trees **safely**, respecting their type:
+- Nodes can be Primitives (functions), Terminals (variables/constants), or Ephemeral constants.
+- The LLM has freedom to design the crossover strategy, as long as the resulting individuals are valid and can be used with DEAP GP algorithms.
+Use only gp.PrimitiveTree, gp.Primitive, gp.Terminal, and standard Python operations on the tree list.
+
+Do NOT import or reference any DEAP classes or methods that are not explicitly documented.
+Do NOT create GP nodes manually. You can access nodes using pset.primitives or pset.terminals
+Do NOT assume the existence of classes like EphemeralConstant, PrimitiveTree, or helper functions such as get_leaves.
+The tree structure (prefix order and arity consistency) must remain valid.
+Do not assume numeric operations on non-numeric nodes.
+
+Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
+
+An example well-performing crossover method is given below:
+        
+def crossover_individuals(individual1, individual2, pset):
+    """Randomly select crossover point in each individual and exchange each
+    subtree with the point as root between each individual.
+
+    :param individual1: First tree participating in the crossover.
+    :param individual2: Second tree participating in the crossover.
+    :returns: A tuple of two trees.
+    """
+
+    if len(individual1) < 2 or len(individual2) < 2:
+        # No crossover on single node tree
+        return individual1, individual2
+
+    # List all available primitive types in each individual
+    types1 = defaultdict(list)
+    types2 = defaultdict(list)
+    if individual1.root.ret == object:
+        # Not STGP optimization
+        types1[object] = list(range(1, len(individual1)))
+        types2[object] = list(range(1, len(individual2)))
+        common_types = [object]
+    else:
+        for idx, node in enumerate(individual1[1:], 1):
+            types1[node.ret].append(idx)
+        for idx, node in enumerate(individual2[1:], 1):
+            types2[node.ret].append(idx)
+        common_types = set(types1.keys()).intersection(set(types2.keys()))
+
+    if len(common_types) > 0:
+        type_ = random.choice(list(common_types))
+
+        index1 = random.choice(types1[type_])
+        index2 = random.choice(types2[type_])
+
+        slice1 = individual1.searchSubtree(index1)
+        slice2 = individual2.searchSubtree(index2)
+        individual1[slice1], individual2[slice2] = individual2[slice2], individual1[slice1]
+
+    return individual1, individual2
+    
+Output ONLY valid Python code.
+Do not include explanations, comments, markdown, or analysis.

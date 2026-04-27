@@ -1226,7 +1226,6 @@ def create_daytona_snapshot():
     load_dotenv()
 
     daytona_api_key = os.environ.get("DAYTONA_API_KEY") #Uses the Daytona API
-    print(f"API KEY: {daytona_api_key}")
 
     config = daytona.DaytonaConfig(
         api_key=daytona_api_key.strip(),

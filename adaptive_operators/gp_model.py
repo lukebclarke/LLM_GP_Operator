@@ -161,7 +161,6 @@ class AdaptiveRegressor(BaseEstimator, RegressorMixin):
         """
         #Defines LLM Client for custom genetic operators
         api_key = os.environ.get("TOGETHER_AI") #Uses the TogetherAI API
-        print(f"API KEY: {api_key}")
 
         if api_key is None:
             raise Exception("Together API key not found")

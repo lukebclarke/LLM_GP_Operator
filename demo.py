@@ -48,38 +48,65 @@ def setup_demo():
     #Set up regressor
     ao_est = AdaptiveRegressor(**optimal_parameters)
     pset = ao_est.create_pset(1)
-    # ao_est.setup_daytona(max_attempts=10)
+    ao_est.setup_daytona(max_attempts=10)
     ao_est.create_toolbox(X, Y)
+
+    #Updates prompts for demo
+    with open("docs/LLMPromptCrossoverDemo.txt", "r") as f:
+        ao_est.custom_crossover.llm_prompt = f.read()
+
+    with open("docs/LLMPromptMutationDemo.txt", "r") as f:
+        ao_est.custom_mutate.llm_prompt = f.read()
 
     ind1 = gp.PrimitiveTree.from_string("sub(1, add(mul(ARG0, -1), mul(1, ARG0)))", pset)
     ind2 = gp.PrimitiveTree.from_string("add(mul(pi, ARG0), square(ARG0))", pset)
 
-    plot_individual(ind1, "temp/parent1.pdf")
-    plot_individual(ind2, "temp/parent2.pdf")
+    plot_individual(ind1, "temp/parent1.png")
+    plot_individual(ind2, "temp/parent2.png")
+
+    return ao_est
+
+def get_operator_designs(ao_est):
+    #TODO: Get saved designs if it fails after 5 seconds
+    ao_est.custom_mutate.redesign_operator()
+    ao_est.custom_crossover.redesign_operator()
+
+    mutation_design = ao_est.custom_mutate.operator_design
+    crossover_design = ao_est.custom_crossover.operator_design
+
+    print(mutation_design)
+    print(crossover_design)
+
+    return mutation_design, crossover_design
 
 def demo():
     with gr.Blocks() as demo:
-        parent1_path = "temp/parent1.pdf"
-        parent2_path = "temp/parent1.pdf"
+        parent1_path = "temp/parent1.png"
+        parent2_path = "temp/parent2.png"
 
         with gr.Walkthrough(selected=1) as walkthrough:
             #Step 1 - Show parents
             with gr.Step("Step 1", id=1):
-                
 
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        p1 = gr.Image(parent1_path, height=400)
+                    with gr.Column(scale=1):
+                        p2 = gr.Image(parent2_path, height=400)
+                
                 btn = gr.Button("Generate Genetic Operators")
                 btn.click(lambda: gr.Walkthrough(selected=2), outputs=walkthrough)
 
             #Step 2 - Generate genetic operators
             with gr.Step("Step 2", id=2):
-                txt = gr.Textbox("Custom Genetic Operators")
-
+                pass
             #Step 3 - Applying genetic operators remotely
             with gr.Step("Step 3", id=2):
                 txt = gr.Textbox("Generated Offspring")
 
         demo.launch()
 
-# setup_demo()
-demo()
+ao_est = setup_demo()
+get_operator_designs(ao_est)
+# demo()
 

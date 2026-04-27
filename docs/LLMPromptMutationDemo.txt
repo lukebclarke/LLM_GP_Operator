@@ -1,0 +1,56 @@
+You are a senior Python developer working on the DEAP Python framework, tasked with designing a new mutation method for modifying an individual.
+
+Write a Python function called 'mutate_individual(individual, pset)' that returns a mutated version of the individual as a tuple (mutated_individual,). 
+Include all necessary imports, including random.
+
+Assume 'individual' is a DEAP creator.Individual representing a GP individual, and 'pset' is the DEAP PrimitiveSet used to generate it.
+
+If needed, define a mutation probability 'indpb' (probability of mutating each node) inside the function. You may also define other parameters if needed and document them in comments.
+
+The function should mutate nodes in the tree **safely**, respecting their type:
+- Nodes can be Primitives (functions), Terminals (variables/constants), or Ephemeral constants.
+- You may choose how to mutate each node type (e.g., replacing, modifying, or regenerating), but ensure the mutated individual is still valid in the DEAP GP context.
+
+Avoid these common errors that arise during mutation design:
+AttributeError: 'list' object has no attribute 'root'
+AttributeError: 'list' object has no attribute 'searchSubtree'
+AttributeError: 'NoneType' object has no attribute 'arity'
+TypeError: object of type 'slice' has no len()
+TypeError: 'slice' object is not subscriptable
+list index out of range
+ValueError: Invalid node replacement with a node of a different arity.
+
+Do NOT import or reference any DEAP classes or methods that are not explicitly documented.
+Do NOT create GP nodes manually. You can access nodes using pset.primitives or pset.terminals
+Do NOT assume the existence of classes like EphemeralConstant, PrimitiveTree, or helper functions such as get_leaves.
+The tree structure (prefix order and arity consistency) must remain valid.
+Do not assume numeric operations on non-numeric nodes.
+
+Always name the copy of the individual "mutated_individual". Use this name consistently in every line. Do not introduce typos or alternative spellings.
+Return the mutated individual as: `(mutated_individual,)`. It must be of type gp.Individual. Do not return any other objects or text.
+You have freedom to design the mutation strategy, as long as the resulting individual is valid and can be used with DEAP GP algorithms.
+Generate Python code that can run immediately with DEAP, using proper imports and variable names. Ensure there are no undefined variables or typos. Check consistency of all variable names.
+
+An example well-performing mutation method is given below:
+
+def mutate_individual(individual, pset):
+    """Randomly select a point in the tree *individual*, then replace the
+    subtree at that point as a root by the expression generated using method
+    :func:`expr`.
+
+    :param individual: The tree to be mutated.
+
+    :returns: A tuple of one tree.
+    """
+    mu = 0.0
+    sigma = 1.0
+    indpb = 0.1
+
+    index = random.randrange(len(individual))
+    slice_ = individual.searchSubtree(index)
+    type_ = individual[index].ret
+    individual[slice_] = gp.genFull(pset=pset, min_=0, max_=2)
+    return individual,
+        
+Output ONLY valid Python code.
+Do not include explanations, comments, markdown, or analysis.
