@@ -14,6 +14,7 @@ import math
 import shutil
 import time
 from itertools import product
+from itertools import combinations
 
 import scipy.stats as stats
 import statistics
@@ -1203,6 +1204,22 @@ def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_nam
     plot_boxplot(["LLM-Guided GP", "Standard GP"], [ground_truth_r2s_llm + black_box_r2s_llm, ground_truth_r2s_no_llm + black_box_r2s_no_llm], r"$R^2$ Score Comparison", r"$R^2$",  f"results/llm_vs_without_r2.pdf")
     plot_boxplot(["Ground Truth", "Black Box"], [ground_truth_r2s_llm, black_box_r2s_llm], r"$R^2$ Score for Problem Type", r"$R^2$",  f"results/problem_type_r2.pdf")
 
+    #Improvement Statistical Testing
+    log = open(f"results/black_box_ground_truth_statistical.txt", "w")
+    stat, p_value = stats.mannwhitneyu(ground_truth_improvements, black_box_improvements)
+
+    print("Statistics=%.2f, p=%.2f" % (stat, p_value))
+    log.write("Statistics=%.2f, p=%.2f\n" % (stat, p_value))
+    alpha = 0.05
+    if p_value < alpha:
+        print('Reject Null Hypothesis (Significant difference between two samples)')
+        log.write('Reject Null Hypothesis (Significant difference between two samples)\n')
+    else:
+        print('Do not Reject Null Hypothesis (No significant difference between two samples)')
+        log.write('Do not Reject Null Hypothesis (No significant difference between two samples)\n')
+
+    log.close()
+
 def create_daytona_snapshot():
     """Only used once - creates a snapshot that installs DEAP within a Daytona account. Snapshot can be accessed with "deap_snapshot"
     """
@@ -1254,8 +1271,8 @@ if __name__ == "__main__":
     reasoning = [False, True, False, True, True, False]
 
     optimal_parameters = {
-        "pop_size": 300, 
-        "gens": 100,
+        "pop_size": 3, 
+        "gens": 2,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.9,
         "mutpb": 0.05,
@@ -1272,8 +1289,8 @@ if __name__ == "__main__":
     }
 
     standard_params = {
-        "pop_size": 300, 
-        "gens": 100,
+        "pop_size": 3, 
+        "gens": 2,
         "max_time": 8.0 * 60.0 * 60.0,
         "cxpb": 0.9,
         "mutpb": 0.05,
@@ -1290,9 +1307,9 @@ if __name__ == "__main__":
     }
 
     # blackbox_vs_groundtruth(optimal_parameters, standard_params, "GPT-OSS-120b")
-    ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
-    black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
-    all_problems = ground_truth_problems + black_box_problems
+    # ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
+    # black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
+    # all_problems = ground_truth_problems + black_box_problems
 
-    compare_two_approaches(all_problems, "LLM-Based GP", "Standard GP", optimal_parameters, standard_params, 1)
+    # compare_two_approaches(all_problems, "LLM-Based GP", "Standard GP", optimal_parameters, standard_params, 10)
 
