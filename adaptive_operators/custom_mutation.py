@@ -60,6 +60,8 @@ class CustomMutation(BaseOperator):
 
         offspring = global_env["result"]
 
+        print("Executed")
+
         #Ensures in correct format
         if isinstance(offspring, tuple) and len(offspring)==1:
             return [offspring[0]]

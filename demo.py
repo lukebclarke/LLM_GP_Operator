@@ -4,6 +4,10 @@ from pmlb import fetch_data, dataset_names
 import pygraphviz as pgv
 import gradio as gr
 import os
+import random
+
+#Demo can be run locally using previously saved LLM-generated operators
+LOCAL_EXECUTION = True
 
 def plot_individual(individual, filename):
     nodes, edges, labels = gp.graph(individual)
@@ -47,8 +51,12 @@ def setup_demo():
 
     #Set up regressor
     ao_est = AdaptiveRegressor(**optimal_parameters)
+
+    if not LOCAL_EXECUTION:
+        ao_est.setup_daytona(max_attempts=10)
+
     pset = ao_est.create_pset(1)
-    ao_est.setup_daytona(max_attempts=10)
+    ao_est.pset = pset
     ao_est.create_toolbox(X, Y)
 
     #Updates prompts for demo
@@ -58,8 +66,8 @@ def setup_demo():
     with open("docs/LLMPromptMutationDemo.txt", "r") as f:
         ao_est.custom_mutate.llm_prompt = f.read()
 
-    ind1 = gp.PrimitiveTree.from_string("sub(1, add(mul(ARG0, -1), mul(1, ARG0)))", pset)
-    ind2 = gp.PrimitiveTree.from_string("add(mul(pi, ARG0), square(ARG0))", pset)
+    ind1 = gp.PrimitiveTree.from_string("add(mul(ARG0, protectedDiv(add(ARG0, 1), square(ARG0))), sin(sub(ARG0, pi)))", pset)
+    ind2 = gp.PrimitiveTree.from_string("sub(add(mul(ARG0, ARG0), pi), protectedLog(add(ARG0, 1)))", pset)
 
     plot_individual(ind1, "temp/parent1.png")
     plot_individual(ind2, "temp/parent2.png")
@@ -68,14 +76,28 @@ def setup_demo():
 
 def get_mutation_design(ao_est):
     #TODO: Get saved designs if it fails after 5 seconds
-    ao_est.custom_mutate.redesign_operator()
-    mutation_design = ao_est.custom_mutate.operator_design
+    if LOCAL_EXECUTION:
+        files = os.listdir("demo_designs/mutation_designs")
+        mutation_design_filepath = random.choice(files)
+        with open("demo_designs/mutation_designs/" + mutation_design_filepath, "r") as f:
+            mutation_design = f.read()
+            ao_est.custom_mutate.operator_design = mutation_design
+    else:
+        ao_est.custom_mutate.redesign_operator()
+        mutation_design = ao_est.custom_mutate.operator_design
 
     return mutation_design
 
 def get_crossover_design(ao_est):
-    ao_est.custom_crossover.redesign_operator()
-    crossover_design = ao_est.custom_crossover.operator_design
+    if LOCAL_EXECUTION:
+        files = os.listdir("demo_designs/crossover_designs")
+        crossover_design_filepath = random.choice(files)
+        with open("demo_designs/crossover_designs/" + crossover_design_filepath, "r") as f:
+            crossover_design = f.read()
+            ao_est.custom_crossover.operator_design = crossover_design
+    else:
+        ao_est.custom_crossover.redesign_operator()
+        crossover_design = ao_est.custom_crossover.operator_design
 
     return crossover_design
 
@@ -86,17 +108,43 @@ def generate_operators(ao_est):
     return mutation_design, crossover_design
 
 def apply_mutation(ao_est, individual):
-    offspring = ao_est.custom_mutate.llm_custom_operator_daytona([individual])[0]
-    plot_individual(offspring, "temp/mutation_offspring.png")
+    #Allow 10 attempts
+    for i in range(10):
+        try:
+            if LOCAL_EXECUTION:
+                offspring = ao_est.custom_mutate.llm_custom_operator_locally([individual])[0]
+            else:
+                offspring = ao_est.custom_mutate.llm_custom_operator_daytona([individual])[0]
+        except:
+            if i < 5:
+                continue
 
-    return "temp/mutation_offspring.png"
+            raise Exception("Too many retries")
+
+    print(f"OFFSPRING: {offspring}")
+    filepath = f"temp/mutation_offspring.png"
+    plot_individual(offspring, filepath)
+
+    return filepath
 
 def apply_crossover(ao_est, individual1, individual2):
-    offspring = ao_est.custom_mutate.llm_custom_operator_daytona([individual1, individual2])
-    plot_individual(offspring, "temp/cx_offspring1.png")
-    plot_individual(offspring, "temp/cx_offspring2.png")
+    #Allow 10 attempts
+    for i in range(10):
+        try:
+            if LOCAL_EXECUTION:
+                offspring = ao_est.custom_crossover.llm_custom_operator_locally([individual1, individual2])
+            else:
+                offspring = ao_est.custom_crossover.llm_custom_operator_daytona([individual1, individual2])
+        except:
+            if i < 5:
+                continue
 
-    return "temp/cx_offspring2.png", "temp/cx_offspring2.png"
+            raise Exception("Too many retries")
+
+    plot_individual(offspring[0], "temp/cx_offspring1.png")
+    plot_individual(offspring[1], "temp/cx_offspring2.png")
+
+    return "temp/cx_offspring1.png", "temp/cx_offspring2.png"
 
 def demo():
     ao_est, ind1, ind2 = setup_demo()
@@ -119,15 +167,17 @@ def demo():
 
             #Step 2 - Generate genetic operators
             with gr.Step("Generate Operators", id=2):
-                with gr.Row(equal_height=True):
+                with gr.Row():
                     with gr.Column(scale=1):
-                        mutation_code = gr.Code(value=get_mutation_design(ao_est), label="Custom Mutation Design")
                         mut_button = gr.Button("Apply Mutation Operator")
                         mut_retry = gr.Button("Regenerate")
+
+                        mutation_code = gr.Code(value=get_mutation_design(ao_est), label="Custom Mutation Design")
                     with gr.Column(scale=1):
-                        crossover_code = gr.Code(value=get_crossover_design(ao_est), label="Custom Crossover Design")
                         cx_button = gr.Button("Apply Crossover Operator")
                         cx_retry = gr.Button("Regenerate")
+
+                        crossover_code = gr.Code(value=get_crossover_design(ao_est), label="Custom Crossover Design")
 
                 #Generates operators and advances to next screen
                 gr.on(
@@ -190,11 +240,11 @@ def demo():
 
                 #View crossover results
                 gr.on(
-                    triggers=[mut_button.click],
+                    triggers=[cx_button.click],
                     fn=lambda: gr.Walkthrough(selected=4), 
                     outputs=walkthrough
                 ).then(
-                    fn=lambda: apply_crossover(ao_est, ind2, ind2),
+                    fn=lambda: apply_crossover(ao_est, ind1, ind2),
                     outputs=[cx_offspring_1, cx_offspring_2]
                 )
 

@@ -4,6 +4,7 @@ adaptive_gp
 pmlb
 pmlb-master
 .dockerignore
+demo_designs
 
 #Results
 tree.pdf 
