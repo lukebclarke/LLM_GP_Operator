@@ -368,7 +368,7 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
 
     Args:
         alg1_fitnesses ([float]): Fitnesses to be compared from algorithm 1
-        alg2_fitnesses ([float]): Fitnesses to be compared from algorithm 1
+        alg2_fitnesses ([float]): Fitnesses to be compared from algorithm 2
         alpha (float): The significance value
 
     Returns:
@@ -389,6 +389,27 @@ def statistical_testing(alg1_fitnesses, alg2_fitnesses, alpha):
         diff = True
 
     return stat, p_value, diff
+
+def process_statistical_testing(values1, values2, filepath):
+    """Saves results of statistical testing to logbook
+
+    Args:
+        values1 ([float, int]): Values to be compared from first algorithm
+        values2 ([float, int]): Values to be compared from second algorithm
+        filepath (str): Filepath of where to save results
+    """
+    p_value, test_statistic, diff = statistical_testing(values1, values2, 0.05)
+
+    log = open(filepath, "w")
+    log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
+    log.write(f"p-value: {p_value}\n")
+    if diff:
+        print("Reject the null hypothesis: There is a significant difference between the two samples.")
+        log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
+    else:
+        print("Fail to reject the null hypothesis: No significant difference between the two samples.")
+        log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
+    log.close()
 
 def compare_problem_types(ground_truth_wins, ground_truth_losses, ground_truth_ties, black_box_wins, black_box_losses, black_box_ties, ground_truth_improvements, black_box_improvements):
     """Creates a bar chart and boxplot comparing how LLM-GP performs compared to against standard GP on different problem types.
@@ -444,8 +465,6 @@ def run_problem_instance(problem_name, params, model_name, num_runs=10, save_res
         idxs = np.random.choice(len(X_train), 10000, replace=False)
         X_train = X_train[idxs]
         y_train = y_train[idxs]
-
-    print(f"LENGTH X: {len(X)}")
 
     #Make for model within results
     if save_results:
@@ -1034,95 +1053,6 @@ def model_comparisons(params, names):
 
     if success_rate_per_model:
         bar_chart("LLM-Design Success Rate", "Success Rate (%)", names[:-1], success_rate_per_model, f"{overall_directory_name}/success_rate.pdf")
-        
-def compare_two_approaches(dataset, alg1_name, alg2_name, alg1_params, alg2_params, num_runs=10):
-    """Compare 2 approaches, performing statistical testing between them
-
-    Args:
-        dataset ([str]): Names of problems to investigate from PMLB dataset
-        alg1_name (str): Name of first model
-        alg2_name (str): Name of second model
-        alg1_params (dict): Parameters of first model
-        alg2_params (dict): Parameters of second model
-        num_runs (int, optional): Number of iterations of each problem to run. Defaults to 10.
-    """
-    #TODO: Remove this method - redundant
-
-    for problem in dataset:
-        #Make directory for results
-        directory_name = f"results/{problem}"
-        try:
-            os.mkdir(directory_name)
-        except FileExistsError:
-            pass
-
-        traditional_r2s = []
-        adaptive_r2s = [] 
-
-        traditional_stats = run_problem_instance(problem, alg1_params, alg1_name, num_runs=num_runs)
-        adaptive_stats = run_problem_instance(problem, alg2_params, alg2_name, num_runs=num_runs)
-
-        traditional_r2s.extend(traditional_stats["all_r2"])
-        adaptive_r2s.extend(adaptive_stats["all_r2"])
-
-        #MSE
-        p_value, test_statistic, diff = statistical_testing(traditional_stats["all_testing_fitness"], adaptive_stats["all_testing_fitness"], 0.05)
-
-        log = open(f"{directory_name}/mse_statistical_testing.txt", "w")
-        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
-        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
-        log.write(f"p-value: {p_value}\n")
-        if diff:
-            print("Reject the null hypothesis: There is a significant difference between the two samples.")
-            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-        else:
-            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-
-        #Number Evaluations
-        p_value, test_statistic, diff = statistical_testing(traditional_stats["n_evals"], adaptive_stats["n_evals"], 0.05)
-
-        log = open(f"{directory_name}/n_evals_statistical_testing.txt", "w")
-        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
-        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
-        log.write(f"p-value: {p_value}\n")
-        if diff:
-            print("Reject the null hypothesis: There is a significant difference between the two samples.")
-            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-        else:
-            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-
-        #Execution Times
-        p_value, test_statistic, diff = statistical_testing(traditional_stats["all_execution_times"], adaptive_stats["all_execution_times"], 0.05)
-
-        log = open(f"{directory_name}/exec_times_statistical_testing.txt", "w")
-        log.write(f"Comparison of {alg1_name} Model against {alg2_name} Model\n\n")
-        log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
-        log.write(f"p-value: {p_value}\n")
-        if diff:
-            print("Reject the null hypothesis: There is a significant difference between the two samples.")
-            log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-        else:
-            print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-            log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-
-        plot_boxplot([alg1_name, alg2_name], [traditional_r2s, adaptive_r2s], r"$R^2$ Score per Approach", r"$R^2$", f"results/all_r2s.pdf")
-
-def process_statistical_testing(values1, values2, filepath):
-    #MSE Statistical Testing
-    p_value, test_statistic, diff = statistical_testing(values1, values2, 0.05)
-
-    log = open(filepath, "w")
-    log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
-    log.write(f"p-value: {p_value}\n")
-    if diff:
-        print("Reject the null hypothesis: There is a significant difference between the two samples.")
-        log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-    else:
-        print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-        log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")
-    log.close()
 
 def blackbox_vs_groundtruth(optimal_parameters, standard_model_params, model_name):
     """Compares model performance on blackbox versus ground truth problems
@@ -1331,22 +1261,3 @@ if __name__ == "__main__":
     }
 
     blackbox_vs_groundtruth(optimal_parameters, standard_params, "GPT-OSS-120b")
-    # ground_truth_problems = ["feynman_I_9_18", "feynman_III_12_43", "feynman_test_10", "strogatz_shearflow2", "strogatz_glider1"]
-    # black_box_problems = ["201_pol", "620_fri_c1_1000_25", "628_fri_c3_1000_5", "529_pollen", "nikuradse_2"]
-    # all_problems = ground_truth_problems + black_box_problems
-
-    # compare_two_approaches(all_problems, "LLM-Based GP", "Standard GP", optimal_parameters, standard_params, 10)
-
-    # #MSE
-    # standard_fitness = []
-    # adaptive_fitness = []
-    # p_value, test_statistic, diff = statistical_testing(standard_fitness, adaptive_fitness, 0.05)
-
-    # log.write(f"Wilcoxon Signed Rank Test Statistic: {test_statistic}\n")
-    # log.write(f"p-value: {p_value}\n")
-    # if diff:
-    #     print("Reject the null hypothesis: There is a significant difference between the two samples.")
-    #     log.write("Reject the null hypothesis: There is a significant difference between the two samples.\n")
-    # else:
-    #     print("Fail to reject the null hypothesis: No significant difference between the two samples.")
-    #     log.write("Fail to reject the null hypothesis: No significant difference between the two samples.\n")

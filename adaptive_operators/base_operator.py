@@ -127,7 +127,6 @@ class BaseOperator():
             height = individual.height
             return True
         except Exception as e:
-            print(e)
             return False
 
     def clean_individual(self, individual):
@@ -330,8 +329,6 @@ class BaseOperator():
             operator_code = textwrap.indent(self.operator_design, "    ")
             wrapper_text = self.daytona_wrapper.replace("INSERT_METHOD_DEFINITION_HERE", operator_code)
 
-            print(wrapper_text)
-
             try:
                 results = {"offspring": [],
                            "exception": None}
@@ -348,9 +345,6 @@ class BaseOperator():
                             results["offspring"].append(unpickle_daytona_file(f"offspring{i}", self.sandbox)) 
                             results["offspring"][i] = self.clean_individual(results["offspring"][i])
 
-                            print("OFFSPRING")
-                            print(results["offspring"])
-
                             if not self.validate_individual(results["offspring"][i]):
                                 raise Exception("Invalid offspring generated")
                             
@@ -359,7 +353,6 @@ class BaseOperator():
 
                     except Exception as e:
                         results["exception"] = True
-                        print(e)
 
                 #Uses threads to implement timeout
                 t = threading.Thread(target=execute_llm_code)
@@ -425,7 +418,6 @@ class BaseOperator():
         #Redesign if code is unable to execute locally
         except Exception as e:
             self.total_operator_skips += 1
-            print(e)
             if self.total_operator_skips >= self.max_local_skips:
                 print("Maximum number of local skips exceeded, redesigning operator...")
                 self.redesign_operator()

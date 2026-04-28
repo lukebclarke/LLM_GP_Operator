@@ -6,8 +6,14 @@ import gradio as gr
 import os
 import random
 
+"""
+This script runs a demonstration of the system using gradio. 
+By setting LOCAL_EXECUTION=True, the demo will be ran using previously generated designs, removing added runtime when presenting live.
+The TOGETHER_AI and DAYTONA_API_KEY environment variables need to set with Together AI API and Daytona API keys, respectively.
+"""
+
 #Demo can be run locally using previously saved LLM-generated operators
-LOCAL_EXECUTION = True
+LOCAL_EXECUTION = False
 
 def plot_individual(individual, filename):
     nodes, edges, labels = gp.graph(individual)
@@ -24,6 +30,11 @@ def plot_individual(individual, filename):
     g.draw(filename)
 
 def setup_demo():
+    """Initialises objects needed for the demo
+
+    Returns:
+        AdaptiveRegressor, gp.Individual, gp.Individual: The regressor object and two individuals to mutate/crossover
+    """
     #Set up creator object
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #We want to minimise fitness
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) #Individuals are GP trees (with an associated fitness value)
@@ -75,7 +86,14 @@ def setup_demo():
     return ao_est, ind1, ind2
 
 def get_mutation_design(ao_est):
-    #TODO: Get saved designs if it fails after 5 seconds
+    """Prompts the LLM to redesign the mutation operator
+
+    Args:
+        ao_est (AdaptiveRegressor): The regressor object to employ
+
+    Returns:
+        str: The new mutation design
+    """
     if LOCAL_EXECUTION:
         files = os.listdir("demo_designs/mutation_designs")
         mutation_design_filepath = random.choice(files)
@@ -89,6 +107,14 @@ def get_mutation_design(ao_est):
     return mutation_design
 
 def get_crossover_design(ao_est):
+    """Prompts the LLM to redesign the crossover operator
+
+    Args:
+        ao_est (AdaptiveRegressor): The regressor object to employ
+
+    Returns:
+        str: The new crossover design
+    """
     if LOCAL_EXECUTION:
         files = os.listdir("demo_designs/crossover_designs")
         crossover_design_filepath = random.choice(files)
@@ -102,12 +128,32 @@ def get_crossover_design(ao_est):
     return crossover_design
 
 def generate_operators(ao_est):
+    """Generates two new operator designs
+
+    Args:
+        ao_est (AdaptiveRegressor): The regressor object to employ
+
+    Returns:
+        str, str: The Python code for both operators
+    """
     mutation_design = get_mutation_design(ao_est)
     crossover_design = get_crossover_design(ao_est)
 
     return mutation_design, crossover_design
 
 def apply_mutation(ao_est, individual):
+    """Applies mutation to a singular individual
+
+    Args:
+        ao_est (AdaptiveRegressor): The regressor object to employ
+        individual (gp.Individual): The individual to mutate
+
+    Raises:
+        Exception: Excessive number of retries
+
+    Returns:
+        str: The filepath of the image of the resulting offspring
+    """
     #Allow 10 attempts
     for i in range(10):
         try:
@@ -128,6 +174,19 @@ def apply_mutation(ao_est, individual):
     return filepath
 
 def apply_crossover(ao_est, individual1, individual2):
+    """Applies crossover to two individuals
+
+    Args:
+        ao_est (AdaptiveRegressor): The regressor object to employ
+        individual1 (gp.Individual): The first parent
+        individual2 (gp.Individual): The second parent
+
+    Raises:
+        Exception: Excessive number of retries
+
+    Returns:
+        (str, str): The filepaths of the images of both offspring
+    """
     #Allow 10 attempts
     for i in range(10):
         try:
@@ -147,6 +206,8 @@ def apply_crossover(ao_est, individual1, individual2):
     return "temp/cx_offspring1.png", "temp/cx_offspring2.png"
 
 def demo():
+    """Runs the live demo with a visual interface and sets up host"""
+
     ao_est, ind1, ind2 = setup_demo()
     parent1_path = "temp/parent1.png"
     parent2_path = "temp/parent2.png"

@@ -3,6 +3,7 @@ aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
 aiohttp-retry==2.9.1
 aiosignal==1.4.0
+annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
 appnope==0.1.4
@@ -16,6 +17,7 @@ babel==2.18.0
 beautifulsoup4==4.14.3
 black==25.12.0
 bleach==6.3.0
+brotli==1.2.0
 certifi==2026.1.4
 cffi==2.0.0
 charset-normalizer==3.4.4
@@ -40,6 +42,7 @@ dotenv==0.9.9
 environs==14.5.0
 eval_type_backport==0.2.2
 executing==2.2.1
+fastapi==0.136.1
 fastjsonschema==2.21.2
 filelock==3.20.2
 fonttools==4.61.1
@@ -55,10 +58,14 @@ google-cloud-core==2.5.1
 google-cloud-logging==3.15.0
 google-genai==1.57.0
 googleapis-common-protos==1.72.0
+gradio==6.13.0
+gradio_client==2.5.0
+groovy==0.1.2
 grpc-google-iam-v1==0.14.4
 grpcio==1.80.0
 grpcio-status==1.80.0
 h11==0.16.0
+hf-gradio==0.4.1
 hf-xet==1.2.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -122,6 +129,7 @@ opentelemetry-proto==1.39.1
 opentelemetry-sdk==1.39.1
 opentelemetry-semantic-conventions==0.60b1
 opentelemetry-util-http==0.60b1
+orjson==3.11.8
 packaging==25.0
 pandas==3.0.1
 pandocfilters==1.5.1
@@ -145,14 +153,18 @@ pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.12.5
 pydantic_core==2.41.5
+pydub==0.25.1
 Pygments==2.19.2
+pygraphviz==1.14
 pyparsing==3.3.2
 pytest==9.0.2
 pytest-order==1.3.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-json-logger==4.0.0
+python-multipart==0.0.27
 pytokens==0.3.0
+pytz==2026.1.post1
 PyYAML==6.0.3
 pyzmq==27.1.0
 referencing==0.37.0
@@ -164,10 +176,12 @@ rfc3987-syntax==1.1.0
 rich==14.2.0
 rpds-py==0.30.0
 rsa==4.9.1
+safehttpx==0.1.7
 safetensors==0.7.0
 scikit-learn==1.8.0
 scipy==1.17.1
 seaborn==0.13.2
+semantic-version==2.10.0
 Send2Trash==2.1.0
 setuptools==82.0.1
 shellingham==1.5.4
@@ -175,6 +189,7 @@ six==1.17.0
 sniffio==1.3.1
 soupsieve==2.8.3
 stack-data==0.6.3
+starlette==1.0.0
 sympy==1.14.0
 tabulate==0.9.0
 tenacity==9.1.2
@@ -184,6 +199,7 @@ tinycss2==1.4.0
 together==2.2.0
 tokenizers==0.22.2
 toml==0.10.2
+tomlkit==0.14.0
 tools==1.0.15
 tornado==6.5.5
 tqdm==4.67.1
@@ -199,6 +215,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 uri-template==1.3.0
 urllib3==2.6.2
+uvicorn==0.46.0
 wcwidth==0.6.0
 webcolors==25.10.0
 webencodings==0.5.1
